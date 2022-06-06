@@ -1,4 +1,5 @@
 #include <sca_trace.h>
+#include <sca_key.h>
 
 #include "sca_cmd_test.h"
 
@@ -16,6 +17,8 @@ int sca_cmd_test(struct sca_cmd_opt *opt)
     if (opt->arg_num > 0) {
         SCA_TRACE("arg[0] = %s\n", opt->args[0]);
     }
+
+    
 
     return SCA_ERR_SUCCESS;
 }

@@ -37,10 +37,8 @@ extern "C" {
 #define SCA_ERR_NULL_POINTER    (SCA_ERR_NULL_PARAM + 1)                /* 空指针错误 */
 #define SCA_ERR_NULL_STRING     (SCA_ERR_NULL_POINTER + 1)              /* 空的字符串 */
 
-struct sca_err_info
-{
-    union err_id_info
-    {
+struct sca_err_info {
+    union err_id_info {
         unsigned int code;   /* 错误码 */
         unsigned int module; /* 错误模块序号 */
     } err_id;

@@ -136,10 +136,10 @@ void sca_hash_map_del(SCA_HASH_MAP *map)
         return;
     }
 
-    map->alloc_size         = 0;
-    map->max_link         = 0;
-    map->list_len         = 0;
-    map->node_count         = 0;
+    map->alloc_size = 0;
+    map->max_link = 0;
+    map->list_len = 0;
+    map->node_count = 0;
 
     if (map->hash_link_list) {
         free(map->hash_link_list);
