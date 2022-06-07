@@ -15,7 +15,8 @@ extern "C" {
 typedef struct sca_key SCA_KEY;
 
 enum SCA_KEY_TYPE{
-    SCA_RSA = 0,
+    SCA_UNKNOW = 0,
+    SCA_RSA,
     SCA_EC
 };
 
@@ -23,19 +24,19 @@ enum SCA_KEY_TYPE{
 SCA_KEY *sca_gen_key(enum SCA_KEY_TYPE type, int bitlen);
 
 /* 加载密钥 */
-SCA_KEY *sca_load_key(enum SCA_KEY_TYPE type, const char *passwd, const struct sca_data *data);
+SCA_KEY *sca_load_key(enum SCA_KEY_TYPE type, const char *passwd, const char *file);
 
 /* 加载公钥 */
-SCA_KEY *sca_load_pub_key(enum SCA_KEY_TYPE type, const struct sca_data *data);
+SCA_KEY *sca_load_pub_key(enum SCA_KEY_TYPE type, const char *file);
 
 /* 销毁密钥 */
 void sca_destroy_key(SCA_KEY *key);
 
-/* 编码密钥数据 */
-int sca_enc_key(SCA_KEY *key, const char *passwd, struct sca_data *data);
+/* 编码密钥数据并输出到指定文件 */
+int sca_enc_key(SCA_KEY *key, const char *passwd, const char *file);
 
 /* 编码公钥数据 */
-int sca_enc_pub_key(SCA_KEY *key, struct sca_data *data);
+int sca_enc_pub_key(SCA_KEY *key, const char *file);
 
 #ifdef __cplusplus
 }

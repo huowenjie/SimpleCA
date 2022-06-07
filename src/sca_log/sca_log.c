@@ -31,27 +31,19 @@
 
 /* 日志信息对象 */
 struct sca_log_info {
+    SCA_UINT32 len;                     /* 日志结构长度 */
+    
     /* 
      * 0~4   位为日志级别；
      * 4~8   位为日志输出方式；
      * 8~16  位为日志类型；
-     * 最高位为是否允许进行字符集编码转换；
      * 剩下的为保留位
-     *
-     * 原始编码的数据保存在日志缓冲区低地址处 ，如果需要
-     * 进行编码转换，转码后的数据保存在缓冲区高地址处，具体的
-     * 缓冲区大小根据权重来进行计算。
-     *
-     * 权重 weight 的低四位代表本地编码日志缓冲区长度权重，高四位代表
-     * 编码转换缓冲区长度的权重。
      */
-    SCA_UINT32      len;                            /* 日志结构长度 */
-    SCA_UINT32      flag;                           /* 日志类型参数 */
-    char            log_name[LOG_NAME_BUFLEN];      /* 日志模块名称 */
-    FILE            *log_file;                      /* 文件指针 */
-    SCA_UINT8       buf_weight;                     /* 日志缓冲区权重 */
-    struct sca_data path_buf;                       /* 日志文件路径 */
-    struct sca_data log_buf;                        /* 日志缓冲区 */
+    SCA_UINT32 flag;                    /* 日志选项参数 */
+    char log_name[LOG_NAME_BUFLEN];     /* 日志模块名称 */
+    FILE *log_file;                     /* 文件指针 */
+    struct sca_data path_buf;           /* 日志文件路径 */
+    struct sca_data log_buf;            /* 日志缓冲区 */
 };
 
 /* 日志输出 */
@@ -97,7 +89,6 @@ SCA_UINT32 sca_log_new(SCA_LOG *log, const char *name)
     strncpy(lgst->log_name, name, LOG_NAME_BUFLEN);
     lgst->log_name[LOG_NAME_BUFLEN - 1] = '\0';
 
-    /* 首先设置两个缓冲区长度的权重，然后申请内存 */
     lgst->log_buf.value = (SCA_UINT8 *)malloc(LOG_BUFF_SIZE);
     lgst->log_buf.size = LOG_BUFF_SIZE;
 
@@ -466,17 +457,15 @@ SCA_UINT32 sca_log_trace_details(
     ...
 )
 {
-    int num = 0;
     struct sca_log_info *lgst = NULL;
-    SCA_UINT32 ret = SCA_ERR_SUCCESS;
     SCA_UINT32 level = 0;
-    SCA_UINT32 offset = 0;
 
     char buf[64] = { 0 };
-    SCA_UINT8 *pbuf = NULL;
     SCA_UINT8 *tmp = NULL;
+
+    size_t num = 0;
     size_t tmplen = 0;
-    size_t infolen = 0;
+    
     va_list arg_list;
 
     if (!log) {
@@ -510,73 +499,105 @@ SCA_UINT32 sca_log_trace_details(
         return SCA_ERR_LOG_TYPE;
     }
 
-    /* 分别取出缓冲区和编码缓冲区长度的权重计算偏移值 */
-    offset = lgst->log_buf.size * (lgst->buf_weight & 0x0F) / 
-            ((lgst->buf_weight & 0x0F) + (lgst->buf_weight >> 4));
-
-    tmp = lgst->log_buf.value + offset;
-    tmplen = lgst->log_buf.size - offset;
-
-    /* 先将带有可变参数字符串的值暂时放在编码缓冲区中 */
-    va_start(arg_list, info);
-    num = vsnprintf((char *)tmp, tmplen, info, arg_list);
-    va_end(arg_list);
+    tmp = lgst->log_buf.value;
+    //num = lgst->log_buf.size;
 
     /* 
      * 估算日志信息长度，末尾剩余的 LOG_FORMAT_RESERVE_LEN 字节是
      * 为其他的格式化信息预留的缓冲大小
      */
-    infolen = num + strlen(file) + strlen(func) + LOG_FORMAT_RESERVE_LEN;
+    tmplen = 0;
 
-    pbuf = lgst->log_buf.value;
-    if (tmplen < infolen) {
-        return SCA_ERR_LOG_BUFFER;
-    }
 
     /* 构建输出信息 */
-    strcpy((char *)pbuf, "[");
+    strcpy((char *)tmp, "[");
+    tmplen++;
 
     if (lgst->log_name[0]) {
-        strcat((char *)pbuf, lgst->log_name);
-        strcat((char *)pbuf, " ");
+        strcpy((char *)(tmp + tmplen), lgst->log_name);
+        tmplen += strlen(lgst->log_name);
+
+        strcpy((char *)(tmp + tmplen), " ");
+        tmplen++;
     }
 
     switch (type) {
     case LOG_TYPE_ERROR:
-        strcat((char *)pbuf, LOG_STR_ERROR_FLG);
+        strcpy((char *)(tmp + tmplen), LOG_STR_ERROR_FLG);
+        tmplen += (sizeof(LOG_STR_ERROR_FLG) - 1);
         break;
 
     case LOG_TYPE_WARNING:
-        strcat((char *)pbuf, LOG_STR_WARNING_FLG);
+        strcpy((char *)(tmp + tmplen), LOG_STR_WARNING_FLG);
+        tmplen += (sizeof(LOG_STR_WARNING_FLG) - 1);
         break;
 
     case LOG_TYPE_INFO:
     default:
-        strcat((char *)pbuf, LOG_STR_INFO_FLG);
+        strcpy((char *)(tmp + tmplen), LOG_STR_INFO_FLG);
+        tmplen += (sizeof(LOG_STR_INFO_FLG) - 1);
     }
 
     log_get_curtime(" %Y-%m-%d %H:%M:%S]:", buf, sizeof(buf));
 
-    strcat((char *)pbuf, buf);
-    strcat((char *)pbuf, (const char *)tmp);
+    strcpy((char *)(tmp + tmplen), buf);
+    tmplen += (strlen(buf));
+
+    /* 剩下可存放其他信息的大小 */
+    num = (size_t)(lgst->log_buf.size) - tmplen;
+
+    va_start(arg_list, info);
+    num = (size_t)vsnprintf((char *)(tmp + tmplen), num, info, arg_list);
+    va_end(arg_list);
+
+    tmplen += num;
+
+    if (tmplen >= (size_t)(lgst->log_buf.size - LOG_FORMAT_RESERVE_LEN)) {
+        tmp[lgst->log_buf.size - 1] = '\0';
+        return log_output(lgst);
+    }
 
     if (lgst->flag & LOG_SHOW_FILE_PATH) {
-        strcat((char *)pbuf, " file:");
-        strcat((char *)pbuf, file);
+        size_t len = strlen(file);
+
+        num = (size_t)(lgst->log_buf.size) - tmplen;
+        if (num > (len + 6)) {
+            strcpy((char *)(tmp + tmplen), " file:");
+            tmplen += 6;
+
+            strcpy((char *)(tmp + tmplen), file);
+            tmplen += len;
+        }
     }
 
     if (lgst->flag & LOG_SHOW_FUNC_LINE) {
-        strcat((char *)pbuf, " func:");
-        strcat((char *)pbuf, func);
-        strcat((char *)pbuf, " line:");
-        sprintf(buf, "%d ", line);
-        strcat((char *)pbuf, buf);
+        size_t len = strlen(func);
+
+        num = (size_t)(lgst->log_buf.size) - tmplen;
+        if (num > (len + LOG_FORMAT_RESERVE_LEN)) {
+            strcpy((char *)(tmp + tmplen), " func:");
+            tmplen += 6;
+
+            strcpy((char *)(tmp + tmplen), func);
+            tmplen += len;
+
+            strcpy((char *)(tmp + tmplen), " line:");
+            tmplen += 6;
+
+            sprintf(buf, "%d ", line);
+            strcpy((char *)(tmp + tmplen), buf);
+            tmplen += (strlen(buf));
+        }
     }
 
-    strcat((char *)pbuf, "\n");
-    ret = log_output(lgst);
+    if (tmplen >= (size_t)(lgst->log_buf.size - 1)) {
+        tmp[lgst->log_buf.size - 2] = '\0';
+        tmp[lgst->log_buf.size - 1] = '\n';
+    } else {
+        *(tmp + tmplen) = '\n';
+    }
 
-    return ret;
+    return log_output(lgst);
 }
 
 /* ========================================================================= */

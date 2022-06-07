@@ -14,6 +14,7 @@ int main(int argc, char *argv[])
 
 	SCA_TRACE_LEVEL_DEBUG;
 	SCA_TRACE_OUTPUT_STD;
+    SCA_TRACE_SHOW_DEF;
 
     /* 创建全局缓冲区 */
     sca_cmd_buf_start();
