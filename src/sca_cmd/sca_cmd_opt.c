@@ -2,6 +2,7 @@
 
 #include "sca_cmd_list.h"
 #include "sca_cmd_help.h"
+#include "sca_cmd_genkey.h"
 #include "sca_cmd_test.h"
 
 #include "../sca_err/sca_cmd_err.h"
@@ -14,25 +15,26 @@ static int sca_cmd_version(struct sca_cmd_opt *opt);
 /* 无参指南 */
 static const char cmd_help_no_args[] = 
     "版本号：./simpleca -version\n"
-    "帮  助：./simpleca -help\n"
-    "输  入：./simpleca -in\n"
-    "输  出：./simpleca -out\n"
-    "测  试：./simpleca -test\n";
+    "帮助：./simpleca -help\n"
+    "输入：./simpleca -in\n"
+    "输出：./simpleca -out\n"
+    "测试：./simpleca -test\n"
+    "生成密钥：./simpleca -genkey\n";
 
 /*===========================================================================*/
-
-CMD_HELP_DECLARE(help_args);
-CMD_IO_DECLARE(in_args);
-CMD_IO_DECLARE(out_args);
 
 /* 默认的内置选项表 */
 struct sca_cmd_opt def_cmd_list[] = {
     { CMD_VERSION, NULL, 0, 0, 0, CMD_PRIORITY_VERSION, sca_cmd_version },
 
-    CMD_HELP_DEF_OPTS(help_args),
-    CMD_INPUT_DEF_OPTS(in_args),
-    CMD_OUTPUT_DEF_OPTS(out_args),
-    CMD_TEST_DEF_OPTS(out_args)
+    CMD_HELP_DEF_OPTS,
+    CMD_INPUT_DEF_OPTS,
+    CMD_OUTPUT_DEF_OPTS,
+    CMD_TEST_DEF_OPTS,
+    CMD_GENKEY_DEF_OPTS,
+    CMD_RSA_BITLEN_DEF_OPTS,
+    CMD_KEY_NAME_DEF_OPTS,
+    CMD_KEY_PASSWD_DEF_OPTS
 };
 
 /*===========================================================================*/

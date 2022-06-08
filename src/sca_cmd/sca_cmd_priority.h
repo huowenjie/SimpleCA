@@ -12,6 +12,8 @@
 #define CMD_PRIORITY_VERSION    0
 #define CMD_PRIORITY_INPUT      100
 #define CMD_PRIORITY_OUTPUT     0
+#define CMD_PRIORITY_GENKEY     0
+#define CMD_PRIORITY_KEY_OPT    10
 
 /*===========================================================================*/
 

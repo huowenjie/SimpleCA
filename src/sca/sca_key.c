@@ -11,9 +11,6 @@
 /*===========================================================================*/
 
 struct sca_key {
-    enum SCA_KEY_TYPE type;
-    int bitlen;
-
     EVP_PKEY *pkey;
 };
 
@@ -52,15 +49,12 @@ SCA_KEY *sca_gen_key(enum SCA_KEY_TYPE type, int bitlen)
     key = malloc(sizeof(*key));
     memset(key, 0, sizeof(*key));
 
-    key->type = type;
-    key->bitlen = bitlen;
     key->pkey = pkey;
-
     return key;
 }
 
 /* 加载密钥 */
-SCA_KEY *sca_load_key(enum SCA_KEY_TYPE type, const char *passwd, const char *file)
+SCA_KEY *sca_load_key(const char *passwd, const char *file)
 {
     FILE *fp = NULL;
     EVP_PKEY *pkey = NULL;
@@ -79,14 +73,13 @@ SCA_KEY *sca_load_key(enum SCA_KEY_TYPE type, const char *passwd, const char *fi
 
     pkey = PEM_read_PrivateKey(fp, NULL, cb_get_prv_passwd, (void *)passwd);
     if (!pkey) {
-        SCA_TRACE_ERROR("读取文件失败！");
+        SCA_TRACE_ERROR("解析密钥文件失败！");
         goto end;
     }
 
     key = malloc(sizeof(*key));
     memset(key, 0, sizeof(*key));
 
-    key->type = type;
     key->pkey = pkey;
 
 end:
@@ -96,7 +89,7 @@ end:
 }
 
 /* 加载公钥 */
-SCA_KEY *sca_load_pub_key(enum SCA_KEY_TYPE type, const char *file)
+SCA_KEY *sca_load_pub_key(const char *file)
 {
     return NULL;
 }

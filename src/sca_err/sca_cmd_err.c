@@ -17,7 +17,6 @@ const struct sca_err_info cmd_err_list[] =
 
 void sca_cmd_load_err()
 {
-    sca_load_all_err();
     sca_load_err_list(cmd_err_list);
 }
 

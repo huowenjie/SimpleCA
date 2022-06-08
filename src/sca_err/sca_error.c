@@ -3,6 +3,7 @@
 #include "sca_log_err.h"
 #include "sca_link_err.h"
 #include "sca_hash_err.h"
+#include "sca_cmd_err.h"
 
 /*===========================================================================*/
 
@@ -84,6 +85,9 @@ void sca_load_all_err()
 
     /* 加载 hash 模块错误列表 */
 	sca_hash_load_err();
+
+    /* 加载命令行错误列表 */
+    sca_cmd_load_err();
 }
 
 void sca_load_err_list(const struct sca_err_info *list)
