@@ -24,10 +24,10 @@ enum SCA_KEY_TYPE{
 SCA_KEY *sca_gen_key(enum SCA_KEY_TYPE type, int bitlen);
 
 /* 加载密钥 */
-SCA_KEY *sca_load_key(enum SCA_KEY_TYPE type, const char *passwd, const char *file);
+SCA_KEY *sca_load_key(const char *passwd, const char *file);
 
 /* 加载公钥 */
-SCA_KEY *sca_load_pub_key(enum SCA_KEY_TYPE type, const char *file);
+SCA_KEY *sca_load_pub_key(const char *file);
 
 /* 销毁密钥 */
 void sca_destroy_key(SCA_KEY *key);
