@@ -1,6 +1,8 @@
 #ifndef SCA_CSR_H
 #define SCA_CSR_H
 
+#include "sca_key.h"
+
 /*===========================================================================*/
 /* 证书签发请求（Certificate Signing Request） */
 /*===========================================================================*/
@@ -23,7 +25,7 @@ extern "C" {
  * 
  * 关于证书请求的格式参考 RFC 2986
  * 关于证书的格式参考 RFC 3280
- * 
+ * 关于 Distinguished Name 的解释参考 RFC 4519 和 RFC 4514
  */
 
 /* 证书请求 */
@@ -32,11 +34,39 @@ typedef struct sca_cert_sig_req SCA_CERT_SIG_REQ;
 /* 创建证书请求结构 */
 SCA_CERT_SIG_REQ *sca_csr_create();
 
-/* 设置 */
+/*
+ * 设置主题项
+ *
+ * CN -- commonName (2.5.4.3)
+ * C -- countryName (2.5.4.6)
+ * L -- localityName (2.5.4.7)
+ * ST -- stateOrProvinceName (2.5.4.8)
+ * STREET -- streetAddress (2.5.4.9)
+ * O -- organizationName (2.5.4.10)
+ * OU -- organizationalUnitName (2.5.4.11)
+ */
+int sca_csr_set_subject(SCA_CERT_SIG_REQ *csr, const char *oid, const struct sca_data *dn);
+
+/* 设置公钥数据 */
+int sca_csr_set_pubkey(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
+
+/* 设置公钥的算法 OID */
+int sca_csr_set_pubkey_oid(SCA_CERT_SIG_REQ *csr, const char *oid);
+
+/* 获取证书请求信息 DER 编码数据 */
+int sca_csr_get_info_der(SCA_CERT_SIG_REQ *csr, struct sca_data *dn);
+
+/* 设置签名算法 OID */
+int sca_csr_set_sign_oid(SCA_CERT_SIG_REQ *csr, const char *oid);
+
+/* 设置签名数据 */
+int sca_csr_set_sign_data(SCA_CERT_SIG_REQ *csr, const struct sca_data *dn);
+
+/* 编码证书请求并输出到指定文件 */
+int sca_csr_enc(SCA_CERT_SIG_REQ *csr, const char *file);
 
 /* 销毁证书请求 */
 void sca_csr_destroy(SCA_CERT_SIG_REQ *csr);
-
 
 #ifdef __cplusplus
 }
