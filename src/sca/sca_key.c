@@ -180,6 +180,11 @@ int sca_enc_pub_key(SCA_KEY *key, const char *file)
     return ret;
 }
 
+SCA_KEY_OBJ sca_get_key_obj(SCA_KEY *key)
+{
+    return key ? key->pkey : NULL;
+}
+
 /*===========================================================================*/
 
 EVP_PKEY *gen_rsa_key(int bitlen)
