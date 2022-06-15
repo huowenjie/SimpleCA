@@ -11,7 +11,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-/* 定义密钥 */
+/* 定义密钥和密钥对象 */
 typedef struct sca_key SCA_KEY;
 
 enum SCA_KEY_TYPE{

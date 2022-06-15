@@ -2,6 +2,7 @@
 #define SCA_CSR_H
 
 #include "sca_key.h"
+#include "sca_digest.h"
 
 /*===========================================================================*/
 /* 证书签发请求（Certificate Signing Request） */
@@ -24,7 +25,7 @@ extern "C" {
  * 提交的证书请求签发出相应的证书，同时，CA 会将证书请求信息传输到最终的 X.509 证书中。
  * 
  * 关于证书请求的格式参考 RFC 2986
- * 关于证书的格式参考 RFC 3280
+ * 关于证书的格式参考 RFC 3280，RFC 5280
  * 关于 Distinguished Name 的解释参考 RFC 4519 和 RFC 4514
  */
 
@@ -44,23 +45,19 @@ SCA_CERT_SIG_REQ *sca_csr_create();
  * STREET -- streetAddress (2.5.4.9)
  * O -- organizationName (2.5.4.10)
  * OU -- organizationalUnitName (2.5.4.11)
+ * 
+ * field 可以是 oid，也可以是通用字段名
  */
-int sca_csr_set_subject(SCA_CERT_SIG_REQ *csr, const char *oid, const struct sca_data *dn);
+int sca_csr_set_subject(SCA_CERT_SIG_REQ *csr, const char *field, const struct sca_data *dn);
 
 /* 设置公钥数据 */
 int sca_csr_set_pubkey(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
 
-/* 设置公钥的算法 OID */
-int sca_csr_set_pubkey_oid(SCA_CERT_SIG_REQ *csr, const char *oid);
+/* 生成签名数据 */
+int sca_csr_sign(SCA_CERT_SIG_REQ *csr, enum SCA_MD_ALGO md, SCA_KEY *key);
 
-/* 获取证书请求信息 DER 编码数据 */
-int sca_csr_get_info_der(SCA_CERT_SIG_REQ *csr, struct sca_data *dn);
-
-/* 设置签名算法 OID */
-int sca_csr_set_sign_oid(SCA_CERT_SIG_REQ *csr, const char *oid);
-
-/* 设置签名数据 */
-int sca_csr_set_sign_data(SCA_CERT_SIG_REQ *csr, const struct sca_data *dn);
+/* 验证证书请求 */
+int sca_csr_verify(SCA_CERT_SIG_REQ *csr);
 
 /* 编码证书请求并输出到指定文件 */
 int sca_csr_enc(SCA_CERT_SIG_REQ *csr, const char *file);

@@ -1,18 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sca_key.h>
+#include "sca_inner.h"
 #include <sca_trace.h>
 
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-
 /*===========================================================================*/
-
-struct sca_key {
-    EVP_PKEY *pkey;
-};
 
 static EVP_PKEY *gen_rsa_key(int bitlen);
 static EVP_PKEY *gen_ec_key();
@@ -178,11 +170,6 @@ int sca_enc_pub_key(SCA_KEY *key, const char *file)
         fclose(fp);
     }
     return ret;
-}
-
-SCA_KEY_OBJ sca_get_key_obj(SCA_KEY *key)
-{
-    return key ? key->pkey : NULL;
 }
 
 /*===========================================================================*/
