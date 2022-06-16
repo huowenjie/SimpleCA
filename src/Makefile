@@ -12,6 +12,9 @@ OBJ_FILES := $(patsubst %.c,%.o,$(SRC_FILES))
 # 将源文件名称替换为 .d 名称
 DEP_FILES := $(patsubst %.c,%.d,$(SRC_FILES))
 
+# 所有包含目录前面 + -I
+INC_PATHS = $(addprefix -I, $(INC_PATH))
+
 # 搜索源文件
 vpath %.c $(SRC_PATH)
 
@@ -20,7 +23,7 @@ vpath %.h $(INC_PATH)
 
 # 定义模式编译规则
 %.o:%.c
-	gcc -g -c $< -o $@ -MD -MP  -I../inc -I../inc/sca -Wall
+	gcc -g -c $< -o $@ -MD -MP $(INC_PATHS) -Wall
 
 # 显式定义目标规则，链接生成最终的可执行程序
 $(TARGET): $(OBJ_FILES)
@@ -38,3 +41,4 @@ show:
 	@echo $(SRC_FILES)
 	@echo $(OBJ_FILES)
 	@echo $(DEP_FILES)
+	@echo $(INC_PATHS)

@@ -57,4 +57,5 @@ openssl
 *.key
 *.pub
 *.cer
+simpleca
 

@@ -25,7 +25,7 @@ extern "C" {
  * 提交的证书请求签发出相应的证书，同时，CA 会将证书请求信息传输到最终的 X.509 证书中。
  * 
  * 关于证书请求的格式参考 RFC 2986
- * 关于证书的格式参考 RFC 3280，RFC 5280
+ * 关于证书的格式参考 RFC 5280
  * 关于 Distinguished Name 的解释参考 RFC 4519 和 RFC 4514
  */
 
@@ -34,6 +34,9 @@ typedef struct sca_cert_sig_req SCA_CERT_SIG_REQ;
 
 /* 创建证书请求结构 */
 SCA_CERT_SIG_REQ *sca_csr_create();
+
+/* 加载证书请求 */
+SCA_CERT_SIG_REQ *sca_csr_load(const char *file);
 
 /*
  * 设置主题项
@@ -50,8 +53,20 @@ SCA_CERT_SIG_REQ *sca_csr_create();
  */
 int sca_csr_set_subject(SCA_CERT_SIG_REQ *csr, const char *field, const struct sca_data *dn);
 
+/* 获取主题项数量 */
+int sca_csr_get_subject_count(SCA_CERT_SIG_REQ *csr);
+
+/* 根据索引枚举主题项 */
+int sca_csr_enum_subject(SCA_CERT_SIG_REQ *csr, int index, struct sca_data *dn);
+
+/* 根据字段或者oid来获取主题项 */
+int sca_csr_get_subject_name(SCA_CERT_SIG_REQ *csr, const char *field, struct sca_data *dn);
+
 /* 设置公钥数据 */
 int sca_csr_set_pubkey(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
+
+/* 获取公钥，需要调用 sca_key_destroy 来释放 */
+SCA_KEY *sca_csr_get_pubkey(SCA_CERT_SIG_REQ *csr);
 
 /* 生成签名数据 */
 int sca_csr_sign(SCA_CERT_SIG_REQ *csr, enum SCA_MD_ALGO md, SCA_KEY *key);

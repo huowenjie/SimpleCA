@@ -30,7 +30,7 @@ int sca_cmd_test(struct sca_cmd_opt *opt)
 
     req = sca_csr_create();
 
-    sca_csr_set_subject(req, "2.5.4.6", &dn);
+    sca_csr_set_subject(req, "C", &dn);
     sca_csr_set_pubkey(req, key);
     sca_csr_sign(req, SCA_MD_SHA1, key);
     sca_csr_verify(req, key);
