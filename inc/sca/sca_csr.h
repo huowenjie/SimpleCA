@@ -57,7 +57,7 @@ int sca_csr_set_pubkey(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
 int sca_csr_sign(SCA_CERT_SIG_REQ *csr, enum SCA_MD_ALGO md, SCA_KEY *key);
 
 /* 验证证书请求 */
-int sca_csr_verify(SCA_CERT_SIG_REQ *csr);
+int sca_csr_verify(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
 
 /* 编码证书请求并输出到指定文件 */
 int sca_csr_enc(SCA_CERT_SIG_REQ *csr, const char *file);

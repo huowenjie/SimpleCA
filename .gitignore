@@ -53,3 +53,8 @@ dkms.conf
 
 openssl
 
+*.csr
+*.key
+*.pub
+*.cer
+

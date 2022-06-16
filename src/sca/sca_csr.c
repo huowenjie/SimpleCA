@@ -160,9 +160,66 @@ end:
     return ret;
 }
 
+int sca_csr_verify(SCA_CERT_SIG_REQ *csr, SCA_KEY *key)
+{
+    X509_REQ *req = NULL;
+    EVP_PKEY *pub = NULL;
+
+    if (!csr || !csr->req) {
+        SCA_TRACE_ERROR("参数为 NULL！");
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    req = csr->req;
+
+    if (!key) {
+        pub = X509_REQ_get_pubkey(req);
+    } else {
+        pub = key->pkey;
+    }
+
+    if (!pub) {
+        SCA_TRACE_ERROR("获取公钥失败！");
+        return SCA_ERR_FAILED;  
+    }
+
+    if (X509_REQ_verify(req, pub) != 1) {
+        SCA_TRACE_ERROR("验签失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    return SCA_ERR_SUCCESS;
+}
+
 int sca_csr_enc(SCA_CERT_SIG_REQ *csr, const char *file)
 {
-    return 0;
+    X509_REQ *req = NULL;
+    FILE *fp = NULL;
+    int ret = SCA_ERR_SUCCESS;
+
+    if (!csr || !csr->req) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    req = csr->req;
+    fp = fopen(file, "w");
+
+    if (!fp) {
+        SCA_TRACE_ERROR("文件创建失败\n");
+        return SCA_ERR_FAILED;
+    }
+
+    if (PEM_write_X509_REQ(fp, req) != 1) {
+        SCA_TRACE_ERROR("PEM 编码失败");
+        ret = SCA_ERR_FAILED;
+    }
+
+    if (fp) {
+        fflush(fp);
+        fclose(fp);
+    }
+    return ret;
 }
 
 void sca_csr_destroy(SCA_CERT_SIG_REQ *csr)
