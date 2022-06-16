@@ -19,19 +19,16 @@ vpath %.c $(SRC_PATH)
 vpath %.h $(INC_PATH)
 
 # 定义模式编译规则
-%.o:%.c %.d
-	gcc -g -c $< -o $@ -I../inc -I../inc/sca -Wall
-
-# 定义模式规则，生成依赖文件
-%.d:%.c
-	gcc $^ -M -MF $@ -I../inc -I../inc/sca 
+%.o:%.c
+	gcc -g -c $< -o $@ -MD -MP  -I../inc -I../inc/sca -Wall
 
 # 显式定义目标规则，链接生成最终的可执行程序
 $(TARGET): $(OBJ_FILES)
 	gcc $^ -o $@ -lcrypto -L/opt/openssl3/lib64 -Wl,-rpath=/opt/openssl3/lib64
 
-# 自动生成依赖，将所有的 .d 文件的内容包含在这里
-include $(DEP_FILES)
+# 自动生成依赖，将所有的 .d 文件的内容包含在这里 
+# - 则表示 Make 不会在文件不存在的情况下的报错
+-include $(DEP_FILES)
 
 .PHONY: clean show
 clean:

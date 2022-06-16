@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <time.h>
 
-#include "sca_log.h"
+#include <sca_log.h>
 #include "../sca_err/sca_log_err.h"
 
 /*===========================================================================*/
