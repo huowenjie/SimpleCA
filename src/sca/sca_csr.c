@@ -262,6 +262,12 @@ SCA_KEY *sca_csr_get_pubkey(SCA_CERT_SIG_REQ *csr)
         return NULL;
     }
 
+    pkey = EVP_PKEY_dup(pkey);
+    if (!pkey) {
+        SCA_TRACE_ERROR("公钥拷贝失败！");
+        return NULL;
+    }
+
     ret = malloc(sizeof(*ret));
     memset(ret, 0, sizeof(*ret));
     ret->pkey = pkey;
