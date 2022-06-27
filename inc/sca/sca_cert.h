@@ -12,12 +12,14 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef struct sca_cert SCA_CERT;
-typedef struct sca_cert_ext SCA_EXT;
 
-/* 创建证书 默认是 v3 版本 */
+/* 创建证书 约定是 v3 版本 */
 SCA_CERT *sca_cert_create();
 
-/* 加载证书 */
+/* 销毁证书 */
+void sca_cert_destroy(SCA_CERT *cert);
+
+/* 加载证书，我们默认证书文件是 PEM 格式 */
 SCA_CERT *sca_cert_load(const char *file);
 
 /* 将证书请求的信息导入证书中 */
@@ -26,8 +28,11 @@ int sca_cert_import_csr(SCA_CERT *cert, SCA_CERT_SIG_REQ *req);
 /* 随机生成 20 字节的证书序列号 */
 int sca_cert_gen_serial(SCA_CERT *cert);
 
-/* 获取证书序列号，用字符串表示其十六进制 */
-int sca_cert_get_serial(SCA_CERT *cert, struct sca_data *serial);
+/* 设置整数序列号，整数序列号以字符串表示，必须是正整数，最大长度 20 字节 */
+int sca_cert_set_serial(SCA_CERT *cert, const struct sca_data *serial);
+
+/* 获取证书序列号，format 为 0，serial 以二进制表示；format 为 1，serial 以字符串 16 进制表示 */
+int sca_cert_get_serial(SCA_CERT *cert, int format, struct sca_data *serial);
 
 /* 设置签名算法 */
 int sca_cert_set_sign_algo(SCA_CERT *cert, const char *field);
@@ -193,14 +198,23 @@ SCA_KEY *sca_cert_get_subject_pubkey(SCA_CERT *cert);
  * tion Access），主题信息权限（Subject Information Access）等，更多信息见 RFC 5280。
  */
 
-/* 添加扩展项 */
-int sca_cert_add_ext(SCA_CERT *cert, SCA_EXT *ext);
+/* 添加扩展项, crit 为非零整数，则 ext 为关键项 */
+int sca_cert_add_ext(SCA_CERT *cert, const char *oid, int crit, const struct sca_data *ext);
 
-/* 创建扩展项 */
-SCA_EXT *sca_cert_ext_create(int type);
+/* 获取扩展项数量 */
+int sca_cert_ext_count(SCA_CERT *cert);
 
-/* 销毁扩展项 */
-void sca_cert_ext_destory(SCA_EXT *ext);
+/* 根据 oid 搜索扩展项索引 */
+int sca_cert_get_ext_loc(SCA_CERT *cert, const char *oid);
+
+/* 获取扩展项 OID */
+int sca_cert_get_ext_oid(SCA_CERT *cert, int loc, struct sca_data *oid);
+
+/* 获取扩展项数据 */
+int sca_cert_get_ext_data(SCA_CERT *cert, int loc, struct sca_data *data);
+
+/* 扩展项是否是关键项 */
+int sca_cert_ext_is_critica(SCA_CERT *cert, int loc);
 
 #ifdef __cplusplus
 }

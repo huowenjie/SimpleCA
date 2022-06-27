@@ -10,6 +10,8 @@ SCA_CERT_SIG_REQ *sca_csr_create()
     struct sca_cert_sig_req *ret = malloc(sizeof(*ret));
     X509_REQ *req = X509_REQ_new();
 
+    X509_REQ_set_version(req, 0);
+
     ret->req = req;
     return ret;
 }
