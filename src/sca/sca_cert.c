@@ -14,6 +14,7 @@ SCA_CERT *sca_cert_create()
     X509_set_version(cer, 3);
 
     ret->cert = cer;
+    ret->req_algo = NULL;
     return ret;
 }
 
@@ -23,6 +24,11 @@ void sca_cert_destroy(SCA_CERT *cert)
         if (cert->cert) {
             X509_free(cert->cert);
         }
+
+        if (cert->req_algo) {
+            X509_ALGOR_free(cert->req_algo);
+        }
+
         free(cert);
     }
 }
@@ -52,6 +58,7 @@ SCA_CERT *sca_cert_load(const char *file)
 
     ret = malloc(sizeof(*ret));
     ret->cert = cer;
+    ret->req_algo = NULL;
 
 end:
     if (fp) {
@@ -73,6 +80,10 @@ int sca_cert_import_csr(SCA_CERT *cert, SCA_CERT_SIG_REQ *req)
     X509_REQ *cer_req = NULL;
     X509_NAME *subject = NULL;
     EVP_PKEY *pubkey = NULL;
+
+    X509_ALGOR *sig_algo = NULL;
+    ASN1_OBJECT *sig_obj = NULL;
+    int sig_nid = 0;
 
     if (!cert || !req) {
         SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
@@ -109,7 +120,23 @@ int sca_cert_import_csr(SCA_CERT *cert, SCA_CERT_SIG_REQ *req)
         return SCA_ERR_FAILED;
     }
 
-    /* 其他属性暂不处理 */
+    sig_nid = X509_REQ_get_signature_nid(cer_req);
+    sig_obj = OBJ_nid2obj(sig_nid);
+    if (!sig_obj) {
+        SCA_TRACE_ERROR("当前系统并不支持该算法！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    sig_algo = X509_ALGOR_new();
+
+    if (X509_ALGOR_set0(sig_algo, sig_obj, V_ASN1_OBJECT, NULL) != 1) {
+        SCA_TRACE_ERROR("设置签名算法失败");
+
+        X509_ALGOR_free(sig_algo);
+        return SCA_ERR_FAILED;
+    }
+
+    cert->req_algo = sig_algo;
     return SCA_ERR_SUCCESS;
 }
 
@@ -331,22 +358,6 @@ err:
     return ret;
 }
 
-int sca_cert_set_sign_algo(SCA_CERT *cert, const char *field)
-{
-    if (!cert || !cert->cert) {
-        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
-        return SCA_ERR_NULL_PARAM;
-    }
-
-    if (!field || !*field) {
-        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
-        return SCA_ERR_NULL_PARAM;
-    }
-
-
-    return 0;
-}
-
 /*
  * 设置证书有效期
  *
@@ -356,6 +367,17 @@ int sca_cert_set_sign_algo(SCA_CERT *cert, const char *field)
  */
 int sca_cert_set_validity(SCA_CERT *cert, const char *start, const char *end)
 {
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!start || !*start || !end || !*end) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
+
     return 0;
 }
 

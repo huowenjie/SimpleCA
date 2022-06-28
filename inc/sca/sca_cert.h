@@ -34,9 +34,6 @@ int sca_cert_set_serial(SCA_CERT *cert, const struct sca_data *serial);
 /* 获取证书序列号，format 为 0，serial 以二进制表示；format 为 1，serial 以字符串 16 进制表示 */
 int sca_cert_get_serial(SCA_CERT *cert, int format, struct sca_data *serial);
 
-/* 设置签名算法 */
-int sca_cert_set_sign_algo(SCA_CERT *cert, const char *field);
-
 /*
  * 设置证书有效期
  *
