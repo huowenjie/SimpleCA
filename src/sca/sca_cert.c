@@ -358,15 +358,13 @@ err:
     return ret;
 }
 
-/*
- * 设置证书有效期
- *
- * start 和 end 的格式为 GeneralizedTime 时间格式 YYYYMMDDHHMMSSZ，秒数为 0，
- * 且不允许有小数秒
- * 参照 RFC 5280
- */
 int sca_cert_set_validity(SCA_CERT *cert, const char *start, const char *end)
 {
+    X509 *cer = NULL;
+    ASN1_TIME *tm_start = NULL;
+    ASN1_TIME *tm_end = NULL;
+    int ret = SCA_ERR_SUCCESS;
+
     if (!cert || !cert->cert) {
         SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
         return SCA_ERR_NULL_PARAM;
@@ -377,91 +375,568 @@ int sca_cert_set_validity(SCA_CERT *cert, const char *start, const char *end)
         return SCA_ERR_NULL_STRING;
     }
 
+    cer = cert->cert;
 
-    return 0;
+    tm_start = ASN1_TIME_new();
+    tm_end = ASN1_TIME_new();
+
+    if (ASN1_TIME_set_string_X509(tm_start, start) != 1) {
+        SCA_TRACE_ERROR("设置起始时间失败！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+    if (ASN1_TIME_set_string_X509(tm_end, end) != 1) {
+        SCA_TRACE_ERROR("设置终止时间失败！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+    if (X509_set1_notBefore(cer, tm_start) != 1) {
+        SCA_TRACE_ERROR("设置证书起始时间失败！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+    if (X509_set1_notAfter(cer, tm_end) != 1) {
+        SCA_TRACE_ERROR("设置证书终止时间失败！");
+        ret = SCA_ERR_FAILED;
+    }
+
+end:
+    if (tm_start) {
+        ASN1_TIME_free(tm_start);
+    }
+    
+    if (tm_end) {
+        ASN1_TIME_free(tm_end);
+    }
+    return ret;
 }
 
 /* 设置颁发者信息 */
 int sca_cert_set_issuer(SCA_CERT *cert, const char *field, const struct sca_data *dn)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_NAME *name = NULL;
+
+    if (!cert || !cert->cert || !dn || !dn->value) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (dn->size <= 0) {
+        SCA_TRACE_CODE(SCA_ERR_PARAM);
+        return SCA_ERR_PARAM;
+    }
+
+    if (!field || !*field) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
+    cer = cert->cert;
+    name = X509_get_issuer_name(cer);
+
+    if (!name) {
+        X509_NAME *tmp = X509_NAME_new();
+        X509_set_issuer_name(cer, tmp);
+        X509_NAME_free(tmp);
+
+        name = X509_get_issuer_name(cer);
+        if (!name) {
+            SCA_TRACE_ERROR("获取颁发者信息失败！");
+            return SCA_ERR_FAILED;
+        }
+    }
+
+    if (X509_NAME_add_entry_by_txt(name, field, MBSTRING_UTF8, dn->value, dn->size, -1, 0) != 1) {
+        SCA_TRACE_ERROR("设置颁发者信息失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    return SCA_ERR_SUCCESS;
 }
 
-/* 获取颁发者信息数量 */
 int sca_cert_get_issuer_count(SCA_CERT *cert)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_NAME *name = NULL;
+    int count = 0;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return 0;
+    }
+
+    cer = cert->cert;
+    name = X509_get_issuer_name(cer);
+    count = X509_NAME_entry_count(name);
+
+    return count < 0 ? 0 : count;
 }
 
-/* 根据索引枚举颁发者项 */
 int sca_cert_enum_issuer(SCA_CERT *cert, int index, struct sca_data *dn)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_NAME *name = NULL;
+    X509_NAME_ENTRY *entry = NULL;
+    ASN1_STRING *data = NULL;
+
+    if (!cert || !cert->cert || !dn) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (index < 0) {
+        SCA_TRACE_ERROR("索引不能为负数！");
+        return SCA_ERR_PARAM;
+    }
+
+    cer = cert->cert;
+    name = X509_get_issuer_name(cer);
+
+    if (!name) {
+        SCA_TRACE_ERROR("颁发者信息不存在！");
+        return SCA_ERR_FAILED;
+    }
+
+    if (X509_NAME_entry_count(name) <= 0) {
+        SCA_TRACE_ERROR("颁发者信息数量为 0！");
+        return SCA_ERR_FAILED;
+    } 
+
+    entry = X509_NAME_get_entry(name, index);
+    if (!entry) {
+        SCA_TRACE_ERROR("获取颁发者信息失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    data = X509_NAME_ENTRY_get_data(entry);
+    if (!data) {
+        SCA_TRACE_ERROR("获取颁发者信息数据失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    if (!dn->value) {
+        dn->size = data->length + 1;
+        return SCA_ERR_SUCCESS;
+    }
+
+    if (dn->size <= data->length) {
+        SCA_TRACE_ERROR("缓冲区不足！");
+        return SCA_ERR_FAILED;
+    }
+
+    memcpy(dn->value, data->data, data->length);
+    dn->size = data->length;
+    return SCA_ERR_SUCCESS;
 }
 
-/* 根据字段或者 oid 来获取颁发者项 */
 int sca_cert_get_issuer_name(SCA_CERT *cert, const char *field, struct sca_data *dn)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_NAME *name = NULL;
+    ASN1_OBJECT *obj = NULL;
+    int ret = SCA_ERR_SUCCESS;
+    int len = 0;
+
+    if (!cert || !cert->cert || !dn) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!field || !*field) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
+    cer = cert->cert;
+
+    name = X509_get_issuer_name(cer);
+    if (!name) {
+        SCA_TRACE_ERROR("签发者信息不存在！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    obj = OBJ_txt2obj(field, 0);
+    if (!obj) {
+        SCA_TRACE_ERROR("%s 对象不存在！", field);
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    len = X509_NAME_get_text_by_OBJ(name, obj, NULL, 0);
+    if (len < 0) {
+        SCA_TRACE_ERROR("对象不存在！");
+        ret = SCA_ERR_NULL_POINTER;
+        goto end;
+    }
+
+    if (!dn->value) {
+        dn->size = len;
+        goto end;
+    }
+
+    if (dn->size < len) {
+        SCA_TRACE_ERROR("缓冲区内存不足！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+    if (X509_NAME_get_text_by_OBJ(name, obj, (char *)dn->value, dn->size) != len) {
+        SCA_TRACE_ERROR("获取颁发者信息内容失败！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+end:
+    if (obj) {
+        ASN1_OBJECT_free(obj);
+    }
+    return ret;
 }
 
-/* 设置证书主题项 */
 int sca_cert_set_subject(SCA_CERT *cert, const char *field, const struct sca_data *dn)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_NAME *name = NULL;
+
+    if (!cert || !cert->cert || !dn || !dn->value) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (dn->size <= 0) {
+        SCA_TRACE_CODE(SCA_ERR_PARAM);
+        return SCA_ERR_PARAM;
+    }
+
+    if (!field || !*field) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
+    cer = cert->cert;
+    name = X509_get_subject_name(cer);
+
+    if (!name) {
+        X509_NAME *tmp = X509_NAME_new();
+        X509_set_subject_name(cer, tmp);
+        X509_NAME_free(tmp);
+
+        name = X509_get_subject_name(cer);
+        if (!name) {
+            SCA_TRACE_ERROR("获取主题项信息失败！");
+            return SCA_ERR_FAILED;
+        }
+    }
+
+    if (X509_NAME_add_entry_by_txt(name, field, MBSTRING_UTF8, dn->value, dn->size, -1, 0) != 1) {
+        SCA_TRACE_ERROR("设置主题项信息失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    return SCA_ERR_SUCCESS;
 }
 
-/* 获取主题项数量 */
 int sca_cert_get_subject_count(SCA_CERT *cert)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_NAME *name = NULL;
+    int count = 0;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return 0;
+    }
+
+    cer = cert->cert;
+    name = X509_get_subject_name(cer);
+    count = X509_NAME_entry_count(name);
+
+    return count < 0 ? 0 : count;
 }
 
-/* 根据索引枚举主题项 */
 int sca_cert_enum_subject(SCA_CERT *cert, int index, struct sca_data *dn)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_NAME *name = NULL;
+    X509_NAME_ENTRY *entry = NULL;
+    ASN1_STRING *data = NULL;
+
+    if (!cert || !cert->cert || !dn) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (index < 0) {
+        SCA_TRACE_ERROR("索引不能为负数！");
+        return SCA_ERR_PARAM;
+    }
+
+    cer = cert->cert;
+    name = X509_get_subject_name(cer);
+
+    if (!name) {
+        SCA_TRACE_ERROR("主题项信息不存在！");
+        return SCA_ERR_FAILED;
+    }
+
+    if (X509_NAME_entry_count(name) <= 0) {
+        SCA_TRACE_ERROR("主题项信息数量为 0！");
+        return SCA_ERR_FAILED;
+    } 
+
+    entry = X509_NAME_get_entry(name, index);
+    if (!entry) {
+        SCA_TRACE_ERROR("获取主题项信息失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    data = X509_NAME_ENTRY_get_data(entry);
+    if (!data) {
+        SCA_TRACE_ERROR("获取主题项信息数据失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    if (!dn->value) {
+        dn->size = data->length + 1;
+        return SCA_ERR_SUCCESS;
+    }
+
+    if (dn->size <= data->length) {
+        SCA_TRACE_ERROR("缓冲区不足！");
+        return SCA_ERR_FAILED;
+    }
+
+    memcpy(dn->value, data->data, data->length);
+    dn->size = data->length;
+    return SCA_ERR_SUCCESS;
 }
 
-/* 根据字段或者 oid 来获取主题项 */
 int sca_cert_get_subject_name(SCA_CERT *cert, const char *field, struct sca_data *dn)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_NAME *name = NULL;
+    ASN1_OBJECT *obj = NULL;
+    int ret = SCA_ERR_SUCCESS;
+    int len = 0;
+
+    if (!cert || !cert->cert || !dn) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!field || !*field) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
+    cer = cert->cert;
+
+    name = X509_get_subject_name(cer);
+    if (!name) {
+        SCA_TRACE_ERROR("主题项信息不存在！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    obj = OBJ_txt2obj(field, 0);
+    if (!obj) {
+        SCA_TRACE_ERROR("%s 对象不存在！", field);
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    len = X509_NAME_get_text_by_OBJ(name, obj, NULL, 0);
+    if (len < 0) {
+        SCA_TRACE_ERROR("对象不存在！");
+        ret = SCA_ERR_NULL_POINTER;
+        goto end;
+    }
+
+    if (!dn->value) {
+        dn->size = len;
+        goto end;
+    }
+
+    if (dn->size < len) {
+        SCA_TRACE_ERROR("缓冲区内存不足！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+    if (X509_NAME_get_text_by_OBJ(name, obj, (char *)dn->value, dn->size) != len) {
+        SCA_TRACE_ERROR("获取主题项信息内容失败！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+end:
+    if (obj) {
+        ASN1_OBJECT_free(obj);
+    }
+    return ret;
 }
 
-/* 设置 subject 公钥数据 */
 int sca_cert_set_subject_pubkey(SCA_CERT *cert, SCA_KEY *key)
 {
-    return 0;
+    X509 *cer = NULL;
+    EVP_PKEY *pkey = NULL;
+
+    if (!cert || !cert->cert || !key || !key->pkey) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    cer = cert->cert;
+    pkey = key->pkey;
+
+    if (X509_set_pubkey(cer, pkey) != 1) {
+        SCA_TRACE_ERROR("设置公钥失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    return SCA_ERR_SUCCESS;
 }
 
 /* 获取 subject 公钥，需要调用 sca_key_destroy 来释放 */
 SCA_KEY *sca_cert_get_subject_pubkey(SCA_CERT *cert)
 {
-    return NULL;
+    SCA_KEY *ret = NULL;
+    X509 *cer = NULL;
+    EVP_PKEY *pkey = NULL;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return NULL;
+    }
+
+    cer = cert->cert;
+
+    pkey = X509_get_pubkey(cer);
+    if (!pkey) {
+        SCA_TRACE_ERROR("公钥不存在！");
+        return NULL;
+    }
+
+    ret = malloc(sizeof(*ret));
+    ret->pkey = EVP_PKEY_dup(pkey);
+
+    EVP_PKEY_free(pkey);
+    return ret;
 }
 
-/* 添加扩展项, crit 为非零整数，则 ext 为关键项 */
 int sca_cert_add_ext(SCA_CERT *cert, const char *oid, int crit, const struct sca_data *ext)
 {
-    return 0;
+    X509 *cer = NULL;
+    X509_EXTENSION *ext = NULL;
+    ASN1_OBJECT *obj = NULL;
+    ASN1_OCTET_STRING *data = NULL;
+
+    int ret = SCA_ERR_SUCCESS;
+
+    if (!cert || !cert->cert || !ext || !ext->value) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (ext->size <= 0) {
+        SCA_TRACE_CODE(SCA_ERR_PARAM);
+        return SCA_ERR_PARAM;
+    }
+
+    if (!oid || !*oid) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
+    cer = cert->cert;
+    obj = OBJ_txt2obj(oid, 0);
+    if (!obj) {
+        SCA_TRACE_ERROR("%s 对象不存在！", oid);
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    data = ASN1_OCTET_STRING_new();
+    if (ASN1_OCTET_STRING_set(data, ext->value, ext->size) != 1) {
+        SCA_TRACE_ERROR("设置扩展数据失败！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+    ext = X509_EXTENSION_create_by_OBJ(NULL, obj, crit, data);
+    if (!ext) {
+        SCA_TRACE_ERROR("创建扩展对象失败！");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+
+    if (X509_add_ext(cer, ext, -1) != 1) {
+        SCA_TRACE_ERROR("添加扩展项失败！");
+        ret = SCA_ERR_FAILED;
+    }
+
+end:
+    if (ext) {
+        X509_EXTENSION_free(ext);
+    }
+
+    if (data) {
+        ASN1_OCTET_STRING_free(data);
+    }
+
+    if (obj) {
+        ASN1_OBJECT_free(obj);
+    }
+    return ret;
 }
 
-/* 获取扩展项数量 */
 int sca_cert_ext_count(SCA_CERT *cert)
 {
-    return 0;
+    X509 *cer = NULL;
+    int count = 0;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return 0;
+    }
+
+    cer = cert->cert;
+    count = X509_get_ext_count(cer);
+    return count;
 }
 
-/* 根据 oid 搜索扩展项索引 */
 int sca_cert_get_ext_loc(SCA_CERT *cert, const char *oid)
 {
-    return 0;
+    ASN1_OBJECT *obj = NULL;
+    int ret = -1;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return ret;
+    }
+
+    obj = OBJ_txt2obj(oid, 0);
+    if (!obj) {
+        SCA_TRACE_ERROR("创建扩展对象失败！");
+        return ret;
+    }
+
+    if ((ret = X509_get_ext_by_OBJ(cert->cert, obj, -1)) < 0) {
+        SCA_TRACE_ERROR("查询扩展对象失败！");
+        ret = -1;
+    }
+
+    if (obj) {
+        ASN1_OBJECT_free(obj);
+    }
+
+    return ret;
 }
 
 /* 获取扩展项 OID */
 int sca_cert_get_ext_oid(SCA_CERT *cert, int loc, struct sca_data *oid)
 {
+    
     return 0;
 }
 
