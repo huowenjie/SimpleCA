@@ -210,8 +210,17 @@ int sca_cert_get_ext_oid(SCA_CERT *cert, int loc, struct sca_data *oid);
 /* 获取扩展项数据 */
 int sca_cert_get_ext_data(SCA_CERT *cert, int loc, struct sca_data *data);
 
-/* 扩展项是否是关键项 */
-int sca_cert_ext_is_critica(SCA_CERT *cert, int loc);
+/* 扩展项是否是关键项，critical 返回 0 是非关键项，返回 1 则是关键项 */
+int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical);
+
+/* 签发证书 */
+int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key);
+
+/* 验证证书 */
+int sca_cert_verify(SCA_CERT *cert, SCA_KEY *key);
+
+/* 编码证书并输出到指定文件 */
+int sca_cert_enc(SCA_CERT *cert, const char *file);
 
 #ifdef __cplusplus
 }

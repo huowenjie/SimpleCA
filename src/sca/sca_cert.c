@@ -828,7 +828,7 @@ SCA_KEY *sca_cert_get_subject_pubkey(SCA_CERT *cert)
 int sca_cert_add_ext(SCA_CERT *cert, const char *oid, int crit, const struct sca_data *ext)
 {
     X509 *cer = NULL;
-    X509_EXTENSION *ext = NULL;
+    X509_EXTENSION *val = NULL;
     ASN1_OBJECT *obj = NULL;
     ASN1_OCTET_STRING *data = NULL;
 
@@ -863,21 +863,21 @@ int sca_cert_add_ext(SCA_CERT *cert, const char *oid, int crit, const struct sca
         goto end;
     }
 
-    ext = X509_EXTENSION_create_by_OBJ(NULL, obj, crit, data);
-    if (!ext) {
+    val = X509_EXTENSION_create_by_OBJ(NULL, obj, crit, data);
+    if (!val) {
         SCA_TRACE_ERROR("创建扩展对象失败！");
         ret = SCA_ERR_FAILED;
         goto end;
     }
 
-    if (X509_add_ext(cer, ext, -1) != 1) {
+    if (X509_add_ext(cer, val, -1) != 1) {
         SCA_TRACE_ERROR("添加扩展项失败！");
         ret = SCA_ERR_FAILED;
     }
 
 end:
-    if (ext) {
-        X509_EXTENSION_free(ext);
+    if (val) {
+        X509_EXTENSION_free(val);
     }
 
     if (data) {
@@ -933,23 +933,312 @@ int sca_cert_get_ext_loc(SCA_CERT *cert, const char *oid)
     return ret;
 }
 
-/* 获取扩展项 OID */
 int sca_cert_get_ext_oid(SCA_CERT *cert, int loc, struct sca_data *oid)
 {
-    
-    return 0;
+    X509 *cer = NULL;
+    const STACK_OF(X509_EXTENSION) *ext_list = NULL;
+    X509_EXTENSION *val = NULL;
+    ASN1_OBJECT *obj = NULL;
+    int len = 0;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!oid) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (loc < 0) {
+        SCA_TRACE_CODE(SCA_ERR_PARAM);
+        return SCA_ERR_PARAM;
+    }
+
+    cer = cert->cert;
+    ext_list = X509_get0_extensions(cer);
+    if (!ext_list) {
+        SCA_TRACE_ERROR("证书扩展项不存在！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    val = sk_X509_EXTENSION_value(ext_list, loc);
+    if (!val) {
+        SCA_TRACE_ERROR("没有找到该扩展项！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    obj = X509_EXTENSION_get_object(val);
+    if (!obj) {
+        SCA_TRACE_ERROR("扩展项对象为 NULL！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    len = OBJ_obj2txt(NULL, 0, obj, 0);
+    if (!oid->value) {
+        oid->size = len;
+        return SCA_ERR_SUCCESS;
+    }
+
+    if (oid->size < len) {
+        SCA_TRACE_ERROR("缓冲区不足！");
+        return SCA_ERR_FAILED;
+    }
+
+    if (OBJ_obj2txt((char *)oid->value, oid->size, obj, 0) != len) {
+        SCA_TRACE_ERROR("获取 oid 字符串失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    oid->size = len;
+    return SCA_ERR_SUCCESS;
 }
 
-/* 获取扩展项数据 */
 int sca_cert_get_ext_data(SCA_CERT *cert, int loc, struct sca_data *data)
 {
-    return 0;
+    X509 *cer = NULL;
+    const STACK_OF(X509_EXTENSION) *ext_list = NULL;
+    X509_EXTENSION *val = NULL;
+    ASN1_OCTET_STRING *ext_data = NULL;
+    int len = 0;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!data) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (loc < 0) {
+        SCA_TRACE_CODE(SCA_ERR_PARAM);
+        return SCA_ERR_PARAM;
+    }
+
+    cer = cert->cert;
+    ext_list = X509_get0_extensions(cer);
+    if (!ext_list) {
+        SCA_TRACE_ERROR("证书扩展项不存在！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    val = sk_X509_EXTENSION_value(ext_list, loc);
+    if (!val) {
+        SCA_TRACE_ERROR("没有找到该扩展项！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    ext_data = X509_EXTENSION_get_data(val);
+    if (!ext_data) {
+        SCA_TRACE_ERROR("扩展数据对象为 NULL！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    len = ext_data->length;
+
+    if (!data->value) {
+        data->size = len;
+        return SCA_ERR_SUCCESS;
+    }
+
+    if (data->size < len) {
+        SCA_TRACE_ERROR("缓冲区不足！");
+        return SCA_ERR_FAILED;
+    }
+
+    memcpy(data->value, ext_data->data, len);
+    data->size = len;
+    return SCA_ERR_SUCCESS;
 }
 
-/* 扩展项是否是关键项 */
-int sca_cert_ext_is_critica(SCA_CERT *cert, int loc)
+int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical)
 {
-    return 0;
+    X509 *cer = NULL;
+    const STACK_OF(X509_EXTENSION) *ext_list = NULL;
+    X509_EXTENSION *val = NULL;
+
+    if (!cert || !cert->cert || !critical) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (loc < 0) {
+        SCA_TRACE_CODE(SCA_ERR_PARAM);
+        return SCA_ERR_PARAM;
+    }
+
+    cer = cert->cert;
+    ext_list = X509_get0_extensions(cer);
+    if (!ext_list) {
+        SCA_TRACE_ERROR("证书扩展项不存在！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    val = sk_X509_EXTENSION_value(ext_list, loc);
+    if (!val) {
+        SCA_TRACE_ERROR("没有找到该扩展项！");
+        return SCA_ERR_NULL_POINTER;
+    }
+
+    *critical = X509_EXTENSION_get_critical(val);
+    return SCA_ERR_SUCCESS;
+}
+
+/* 签发证书 */
+int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key)
+{
+    X509 *cer = NULL;
+    EVP_PKEY *pkey = NULL;
+    const EVP_MD *digest = NULL;
+
+    int pkid = EVP_PKEY_NONE;
+    int ret = SCA_ERR_SUCCESS;
+
+    X509_ALGOR *sig_algo = NULL;
+    ASN1_OBJECT *sig_obj = NULL;
+
+    if (!cert || !cert->cert || !key) {
+        SCA_TRACE_ERROR("参数为 NULL！");
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    cer = cert->cert;
+    pkey = key->pkey;
+
+    switch (md) {
+        case SCA_MD_MD5: digest = EVP_md5(); break;
+        case SCA_MD_SHA1: digest = EVP_sha1(); break;
+        case SCA_MD_SHA256: digest = EVP_sha256(); break;
+        default:
+            SCA_TRACE_ERROR("不支持这个摘要算法 %d！", (int)md);
+            return SCA_ERR_FAILED;
+    }
+
+    sig_algo = X509_ALGOR_new();
+    pkid = EVP_PKEY_get_base_id(key->pkey);
+
+    switch (pkid) {
+        case EVP_PKEY_RSA:
+            switch (md) {
+                case SCA_MD_MD5: sig_obj = OBJ_nid2obj(NID_md5WithRSAEncryption); break;
+                case SCA_MD_SHA1:   sig_obj = OBJ_nid2obj(NID_sha1WithRSAEncryption); break;
+                case SCA_MD_SHA256: sig_obj = OBJ_nid2obj(NID_sha256WithRSAEncryption); break;
+            }
+            break;
+        case EVP_PKEY_EC:
+            switch (md) {
+                case SCA_MD_SHA1:   sig_obj = OBJ_nid2obj(NID_ecdsa_with_SHA1); break;
+                case SCA_MD_SHA256: sig_obj = OBJ_nid2obj(NID_ecdsa_with_SHA256); break;
+                default:
+                    SCA_TRACE_ERROR("ECDSA 签名算法不支持和 md5 摘要");
+                    ret = SCA_ERR_FAILED;
+                    goto end;
+            }
+            break;
+        case EVP_PKEY_NONE:
+        default:
+            SCA_TRACE_ERROR("不支持该公钥算法 %d", (int)pkid);
+            ret = SCA_ERR_FAILED;
+            goto end;
+    }
+
+    if (X509_ALGOR_set0(sig_algo, sig_obj, V_ASN1_OBJECT, NULL) != 1) {
+        SCA_TRACE_ERROR("设置签名算法失败");
+        ret = SCA_ERR_FAILED;
+        goto end;
+    }
+    
+    if (cert->req_algo) {
+        if (X509_ALGOR_cmp(sig_algo, cert->req_algo)) {
+            SCA_TRACE_ERROR("请求的签名算法和指定的签名算法不一致！");
+            ret = SCA_ERR_FAILED;
+            goto end;
+        }
+    }
+
+    if (!X509_sign(cer, pkey, digest)) {
+        SCA_TRACE_ERROR("签名失败！");
+        ret = SCA_ERR_FAILED;
+    }
+
+end:
+
+    if (sig_algo) {
+        X509_ALGOR_free(sig_algo);
+    }
+    return ret;
+}
+
+int sca_cert_verify(SCA_CERT *cert, SCA_KEY *key)
+{
+    X509 *cer = NULL;
+    EVP_PKEY *pub = NULL;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    cer = cert->cert;
+
+    if (!key) {
+        /* 自验 */
+        pub = X509_get_pubkey(cer);
+    } else {
+        pub = key->pkey;
+    }
+
+    if (!pub) {
+        SCA_TRACE_ERROR("获取公钥失败！");
+        return SCA_ERR_FAILED;  
+    }
+
+    if (X509_verify(cer, pub) != 1) {
+        SCA_TRACE_ERROR("验签失败！");
+        return SCA_ERR_FAILED;
+    }
+
+    return SCA_ERR_SUCCESS;
+}
+
+int sca_cert_enc(SCA_CERT *cert, const char *file)
+{
+    X509 *cer = NULL;
+    FILE *fp = NULL;
+    int ret = SCA_ERR_SUCCESS;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!file || !*file) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
+    cer = cert->cert;
+    fp = fopen(file, "w");
+
+    if (!fp) {
+        SCA_TRACE_ERROR("文件创建失败\n");
+        return SCA_ERR_FAILED;
+    }
+
+    if (PEM_write_X509(fp, cer) != 1) {
+        SCA_TRACE_ERROR("PEM 编码失败");
+        ret = SCA_ERR_FAILED;
+    }
+
+    if (fp) {
+        fflush(fp);
+        fclose(fp);
+    }
+
+    return ret;
 }
 
 /*===========================================================================*/

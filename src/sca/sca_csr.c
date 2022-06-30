@@ -406,6 +406,11 @@ int sca_csr_enc(SCA_CERT_SIG_REQ *csr, const char *file)
         return SCA_ERR_NULL_PARAM;
     }
 
+    if (!file || !*file) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
     req = csr->req;
     fp = fopen(file, "w");
 
