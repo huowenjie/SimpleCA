@@ -12,5 +12,8 @@
 3.查看证书请求  
 > openssl req -in xxx.csr -noout -text
 
+4.查看证书
+> openssl x509 -in xxx.cer -noout -text
+
 
 

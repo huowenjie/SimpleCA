@@ -368,6 +368,7 @@ int sca_csr_verify(SCA_CERT_SIG_REQ *csr, SCA_KEY *key)
 {
     X509_REQ *req = NULL;
     EVP_PKEY *pub = NULL;
+    int ret = SCA_ERR_SUCCESS;
 
     if (!csr || !csr->req) {
         SCA_TRACE_ERROR("参数为 NULL！");
@@ -384,15 +385,20 @@ int sca_csr_verify(SCA_CERT_SIG_REQ *csr, SCA_KEY *key)
 
     if (!pub) {
         SCA_TRACE_ERROR("获取公钥失败！");
-        return SCA_ERR_FAILED;  
+        ret = SCA_ERR_FAILED;
+        goto end;
     }
 
     if (X509_REQ_verify(req, pub) != 1) {
         SCA_TRACE_ERROR("验签失败！");
-        return SCA_ERR_FAILED;
+        ret = SCA_ERR_FAILED;
     }
 
-    return SCA_ERR_SUCCESS;
+end:
+    if (!key && pub) {
+        EVP_PKEY_free(pub);
+    }
+    return ret;
 }
 
 int sca_csr_enc(SCA_CERT_SIG_REQ *csr, const char *file)

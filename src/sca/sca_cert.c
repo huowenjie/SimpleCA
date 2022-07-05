@@ -11,7 +11,7 @@ SCA_CERT *sca_cert_create()
     X509 *cer = X509_new();
     SCA_CERT *ret = malloc(sizeof(*ret));
 
-    X509_set_version(cer, 3);
+    X509_set_version(cer, X509_VERSION_3);
 
     ret->cert = cer;
     ret->req_algo = NULL;
@@ -84,6 +84,7 @@ int sca_cert_import_csr(SCA_CERT *cert, SCA_CERT_SIG_REQ *req)
     X509_ALGOR *sig_algo = NULL;
     ASN1_OBJECT *sig_obj = NULL;
     int sig_nid = 0;
+    int ret = SCA_ERR_SUCCESS;
 
     if (!cert || !req) {
         SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
@@ -112,32 +113,39 @@ int sca_cert_import_csr(SCA_CERT *cert, SCA_CERT_SIG_REQ *req)
 
     if (X509_set_subject_name(cer, subject) != 1) {
         SCA_TRACE_ERROR("设置证书主题失败！");
-        return SCA_ERR_FAILED;
+        ret = SCA_ERR_FAILED;
+        goto end;
     }
 
     if (X509_set_pubkey(cer, pubkey) != 1) {
         SCA_TRACE_ERROR("设置证书公钥失败！");
-        return SCA_ERR_FAILED;
+        ret = SCA_ERR_FAILED;
+        goto end;
     }
 
     sig_nid = X509_REQ_get_signature_nid(cer_req);
     sig_obj = OBJ_nid2obj(sig_nid);
     if (!sig_obj) {
         SCA_TRACE_ERROR("当前系统并不支持该算法！");
-        return SCA_ERR_NULL_POINTER;
+        ret = SCA_ERR_NULL_POINTER;
+        goto end;
     }
 
     sig_algo = X509_ALGOR_new();
 
     if (X509_ALGOR_set0(sig_algo, sig_obj, V_ASN1_OBJECT, NULL) != 1) {
         SCA_TRACE_ERROR("设置签名算法失败");
-
         X509_ALGOR_free(sig_algo);
-        return SCA_ERR_FAILED;
+        ret = SCA_ERR_FAILED;
+        goto end;
     }
 
     cert->req_algo = sig_algo;
-    return SCA_ERR_SUCCESS;
+end:
+    if (pubkey) {
+        EVP_PKEY_free(pubkey);
+    }
+    return ret;
 }
 
 int sca_cert_gen_serial(SCA_CERT *cert)
@@ -1150,7 +1158,8 @@ int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key)
         ret = SCA_ERR_FAILED;
         goto end;
     }
-    
+
+#if 0
     if (cert->req_algo) {
         if (X509_ALGOR_cmp(sig_algo, cert->req_algo)) {
             SCA_TRACE_ERROR("请求的签名算法和指定的签名算法不一致！");
@@ -1158,6 +1167,7 @@ int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key)
             goto end;
         }
     }
+#endif
 
     if (!X509_sign(cer, pkey, digest)) {
         SCA_TRACE_ERROR("签名失败！");
@@ -1176,6 +1186,7 @@ int sca_cert_verify(SCA_CERT *cert, SCA_KEY *key)
 {
     X509 *cer = NULL;
     EVP_PKEY *pub = NULL;
+    int ret = SCA_ERR_SUCCESS;
 
     if (!cert || !cert->cert) {
         SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
@@ -1185,7 +1196,6 @@ int sca_cert_verify(SCA_CERT *cert, SCA_KEY *key)
     cer = cert->cert;
 
     if (!key) {
-        /* 自验 */
         pub = X509_get_pubkey(cer);
     } else {
         pub = key->pkey;
@@ -1193,15 +1203,20 @@ int sca_cert_verify(SCA_CERT *cert, SCA_KEY *key)
 
     if (!pub) {
         SCA_TRACE_ERROR("获取公钥失败！");
-        return SCA_ERR_FAILED;  
+        ret = SCA_ERR_FAILED;
+        goto end;
     }
 
     if (X509_verify(cer, pub) != 1) {
         SCA_TRACE_ERROR("验签失败！");
-        return SCA_ERR_FAILED;
+        ret = SCA_ERR_FAILED;
     }
 
-    return SCA_ERR_SUCCESS;
+end:
+    if (!key && pub) {
+        EVP_PKEY_free(pub);
+    }
+    return ret;
 }
 
 int sca_cert_enc(SCA_CERT *cert, const char *file)
