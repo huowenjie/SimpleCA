@@ -13,6 +13,19 @@ extern "C" {
 
 typedef struct sca_cert SCA_CERT;
 
+/* 密钥用途 */
+enum SCA_KEY_USAGE {
+    DIDITAL_SIGNATURE = 0,
+    NON_REPUDIATION,
+    KEY_ENCIPHERMENT,
+    DATA_ENCIPHERMENT,
+    KEY_AGREEMENT,
+    KEY_CERT_SIGN,
+    CRL_SIGN,
+    ENCIPHER_ONLY,
+    DECIPHER_ONLY
+};
+
 /* 创建证书 约定是 v3 版本 */
 SCA_CERT *sca_cert_create();
 
@@ -212,6 +225,21 @@ int sca_cert_get_ext_data(SCA_CERT *cert, int loc, struct sca_data *data);
 
 /* 扩展项是否是关键项，critical 返回 0 是非关键项，返回 1 则是关键项 */
 int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical);
+
+/*
+ * 生成密钥标识符，akid 表示是否是 Authority Key Identifier，如果为 1，则
+ * 为证书添加 Authority Key Identifier 扩展；
+ * 如果 akid 为 0，则为证书添加 Subject Key Identifier 扩展。
+ * 
+ * Authority Key Identifier: 2.5.29.35
+ * Subject Key Identifier: 2.5.29.14
+ */
+int sca_cert_ext_gen_key_id(SCA_CERT *cert, SCA_KEY *key, int akid);
+
+/* 添加密钥用途 */
+int sca_cert_ext_add_key_usage(SCA_CERT *cert, enum SCA_KEY_USAGE usage);
+
+/*  */
 
 /* 签发证书 */
 int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key);

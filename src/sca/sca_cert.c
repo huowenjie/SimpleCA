@@ -1095,7 +1095,26 @@ int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical)
     return SCA_ERR_SUCCESS;
 }
 
-/* 签发证书 */
+int sca_cert_ext_gen_key_id(SCA_CERT *cert, SCA_KEY *key, int akid)
+{
+    if (!cert || !cert->cert || !key || !key->pkey) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!akid) {
+        /* Subject Key Identifier */
+    } else {
+        /* Authority Key Identifier */
+    }
+    return 0;
+}
+
+int sca_cert_ext_set_key_usage(SCA_CERT *cert, enum SCA_KEY_USAGE usage)
+{
+    return 0;
+}
+
 int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key)
 {
     X509 *cer = NULL;
