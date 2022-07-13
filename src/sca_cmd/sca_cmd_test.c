@@ -11,6 +11,8 @@ static char user_cn[] = "lzxxm";
 static char user_c[] = "CN";
 static char user_o[] = "lzld";
 
+static char def_cps[] = "http://certificates.starfieldtech.com/repository/";
+
 /*===========================================================================*/
 
 int sca_cmd_test(struct sca_cmd_opt *opt)
@@ -22,6 +24,7 @@ int sca_cmd_test(struct sca_cmd_opt *opt)
     SCA_CERT *usercert = NULL;
 
     struct sca_data dn = { 0 };
+    struct sca_data cps = { 0 };
 
     if (!opt) {
         SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
@@ -63,6 +66,15 @@ int sca_cmd_test(struct sca_cmd_opt *opt)
 
     /* 设置公钥信息 */
     sca_cert_set_subject_pubkey(cert, key);
+
+    /* 设置 AKID */
+    sca_cert_ext_add_key_id(cert, cert, 1);
+
+    /* 设置 SKID */
+    sca_cert_ext_add_key_id(cert, cert, 0);
+
+    /* 设置证书用途 */
+    sca_cert_ext_set_key_usage(cert, cert, SCA_KU_KEY_CERT_SIGN | SCA_KU_DIDITAL_SIGNATURE);
 
     /* 签发证书(自签) */
     sca_cert_sign(cert, SCA_MD_SHA1, key);
@@ -112,6 +124,20 @@ int sca_cmd_test(struct sca_cmd_opt *opt)
 
     sca_cert_gen_serial(usercert);
     sca_cert_set_validity(usercert, "20220705000000Z", "20320705000000Z");
+
+    /* 设置 AKID */
+    sca_cert_ext_add_key_id(cert, usercert, 1);
+
+    /* 设置 SKID */
+    sca_cert_ext_add_key_id(cert, usercert, 0);
+
+    /* 设置证书用途 */
+    sca_cert_ext_set_key_usage(cert, usercert, SCA_KU_DIDITAL_SIGNATURE);
+
+    /* 设置证书策略 */
+    cps.value = (SCA_BYTE *)def_cps;
+    cps.size = sizeof(def_cps) - 1;
+    sca_cert_ext_add_cp(usercert, "2.16.840.1.114414.1.7.23.1", SCA_CP_CPS, &cps);
 
     /* 签发证书，用 CA 的私钥签发 */
     sca_cert_sign(usercert, SCA_MD_SHA1, key);

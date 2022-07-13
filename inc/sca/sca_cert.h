@@ -15,15 +15,30 @@ typedef struct sca_cert SCA_CERT;
 
 /* 密钥用途 */
 enum SCA_KEY_USAGE {
-    DIDITAL_SIGNATURE = 0,
-    NON_REPUDIATION,
-    KEY_ENCIPHERMENT,
-    DATA_ENCIPHERMENT,
-    KEY_AGREEMENT,
-    KEY_CERT_SIGN,
-    CRL_SIGN,
-    ENCIPHER_ONLY,
-    DECIPHER_ONLY
+    SCA_KU_DIDITAL_SIGNATURE = 0x00000001U,
+    SCA_KU_NON_REPUDIATION = 0x00000002U,
+    SCA_KU_KEY_ENCIPHERMENT = 0x00000004U,
+    SCA_KU_DATA_ENCIPHERMENT = 0x00000008U,
+    SCA_KU_KEY_AGREEMENT = 0x00000010U,
+    SCA_KU_KEY_CERT_SIGN = 0x00000020U,
+    SCA_KU_CRL_SIGN = 0x00000040U,
+    SCA_KU_ENCIPHER_ONLY = 0x00000080U,
+    SCA_KU_DECIPHER_ONLY = 0x00000100U
+};
+
+/* 证书策略信息类型 */
+enum SCA_CP_TYPE {
+    SCA_CP_DEFAULT = 0,
+    SCA_CP_CPS,
+    SCA_CP_UNOTICE
+};
+
+/* 证书备用名称类型 */
+enum SCA_SAN_TYPE {
+    SCA_SAN_E_MAIL = 0,
+    SCA_SAN_DNS_NAME,
+    SCA_SAN_IP_ADDRESS,
+    SCA_SAN_URI
 };
 
 /* 创建证书 约定是 v3 版本 */
@@ -234,12 +249,21 @@ int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical);
  * Authority Key Identifier: 2.5.29.35
  * Subject Key Identifier: 2.5.29.14
  */
-int sca_cert_ext_gen_key_id(SCA_CERT *cert, SCA_KEY *key, int akid);
+int sca_cert_ext_add_key_id(SCA_CERT *issuer, SCA_CERT *cert, int akid);
 
-/* 添加密钥用途 */
-int sca_cert_ext_add_key_usage(SCA_CERT *cert, enum SCA_KEY_USAGE usage);
+/* 添加密钥用途, usage 见 SCA_KEY_USAGE */
+int sca_cert_ext_set_key_usage(SCA_CERT *issuer, SCA_CERT *cert, SCA_UINT32 usage);
 
-/*  */
+/* 添加 anyPolicy 证书策略，oid 为当前策略的标识符，type 为策略信息类型，data 为策略信息数据 */
+int sca_cert_ext_add_cp(
+    SCA_CERT *cert,
+    const char *oid,
+    enum SCA_CP_TYPE type,
+    const struct sca_data *data
+);
+
+/* 添加使用者备用名称 subject alternative name*/
+int sca_cert_ext_add_san(SCA_CERT *cert, enum SCA_SAN_TYPE type, const char *name);
 
 /* 签发证书 */
 int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key);

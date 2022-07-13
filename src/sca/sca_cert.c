@@ -6,6 +6,21 @@
 
 /*===========================================================================*/
 
+/* 密钥用途标记，见openssl-v3_bitst.c */
+static const char *KEY_USAGE_VALUES[] = {
+    "digitalSignature",
+    "nonRepudiation",
+    "keyEncipherment",
+    "dataEncipherment",
+    "keyAgreement",
+    "keyCertSign",
+    "cRLSign",
+    "encipherOnly",
+    "decipherOnly"
+};
+
+/*===========================================================================*/
+
 SCA_CERT *sca_cert_create()
 {
     X509 *cer = X509_new();
@@ -1095,22 +1110,239 @@ int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical)
     return SCA_ERR_SUCCESS;
 }
 
-int sca_cert_ext_gen_key_id(SCA_CERT *cert, SCA_KEY *key, int akid)
+int sca_cert_ext_add_key_id(SCA_CERT *issuer, SCA_CERT *cert, int akid)
 {
-    if (!cert || !cert->cert || !key || !key->pkey) {
+    X509V3_CTX ctx = { 0 };
+    X509 *cer = NULL;
+    X509 *iss = NULL;
+
+    X509_EXTENSION *ext = NULL;
+    int ret = SCA_ERR_SUCCESS;
+
+    if (!issuer || !issuer->cert) {
         SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
         return SCA_ERR_NULL_PARAM;
     }
 
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    iss = issuer->cert;
+    cer = cert->cert;
+
+    X509V3_set_ctx(&ctx, iss, cer, NULL, NULL, X509V3_CTX_REPLACE);
+
     if (!akid) {
         /* Subject Key Identifier */
+        ext = X509V3_EXT_nconf(NULL, &ctx, SN_subject_key_identifier, "hash");
     } else {
-        /* Authority Key Identifier */
+        /* Authority Key Identifier，自签证书不添加该扩展 */
+        if (iss == cer) {
+            goto end;
+        }
+        ext = X509V3_EXT_nconf(NULL, &ctx, SN_authority_key_identifier, "keyid, issuer");
     }
-    return 0;
+
+    if (!ext) {
+        ret = SCA_ERR_NULL_POINTER;
+        SCA_TRACE_CODE(ret);
+        goto end;
+    }
+
+    if (X509_add_ext(cer, ext, -1) != 1) {
+        ret = SCA_ERR_FAILED;
+        SCA_TRACE_CODE(ret);
+    }
+
+end:
+    if (ext) {
+        X509_EXTENSION_free(ext);
+    }
+    return ret;
 }
 
-int sca_cert_ext_set_key_usage(SCA_CERT *cert, enum SCA_KEY_USAGE usage)
+int sca_cert_ext_set_key_usage(SCA_CERT *issuer, SCA_CERT *cert, SCA_UINT32 usage)
+{
+    X509 *cer = NULL;
+    X509 *iss = NULL;
+    SCA_UINT32 opt = 0;
+    int i = 0;
+    int j = 0;
+
+    X509_EXTENSION *ext = NULL;
+    X509V3_CTX ctx = { 0 };
+    char *buffer = NULL;
+
+    int ret = SCA_ERR_SUCCESS;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!issuer || !issuer->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    cer = cert->cert;
+    iss = issuer->cert;
+    opt = (SCA_UINT32)usage;
+
+    /* 我们将位与 KEY_USAGE_VALUES 的索引对应，获取密钥用途 */
+
+    buffer = malloc(512);
+    memset(buffer, 0, 512);
+
+    /* 构建一个 xxx,xxx,xxx 的字符串 */
+    for (j = sizeof(KEY_USAGE_VALUES) / sizeof(const char *); i < j; i++) {
+        if ((0x00000001U << i) & opt) {
+            if (buffer[0]) {
+                strcat(buffer, ",");
+            }
+            strcat(buffer, KEY_USAGE_VALUES[i]);
+        }
+    }
+
+    X509V3_set_ctx(&ctx, iss, cer, NULL, NULL, X509V3_CTX_REPLACE);
+    ext = X509V3_EXT_nconf(NULL, &ctx, SN_key_usage, buffer);
+    if (!ext) {
+        ret = SCA_ERR_NULL_POINTER;
+        SCA_TRACE_CODE(ret);
+        goto end;
+    }
+
+    X509_EXTENSION_set_critical(ext, 1);
+
+    if (X509_add_ext(cer, ext, -1) != 1) {
+        ret = SCA_ERR_FAILED;
+        SCA_TRACE_CODE(ret);
+    }
+
+end:
+    if (buffer) {
+        free(buffer);
+    }
+
+    if (ext) {
+        X509_EXTENSION_free(ext);
+    }
+
+    return SCA_ERR_SUCCESS;
+}
+
+int sca_cert_ext_add_cp(
+    SCA_CERT *cert,
+    const char *oid,
+    enum SCA_CP_TYPE type,
+    const struct sca_data *data
+)
+{
+    X509 *cer = NULL;
+    X509_EXTENSION *ext = NULL;
+    int loc = 0;
+
+    POLICYINFO *info = NULL;
+    ASN1_OBJECT *obj = NULL;
+
+    int ret = SCA_ERR_SUCCESS;
+
+    if (!cert || !cert->cert) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    if (!oid || !*oid) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_STRING);
+        return SCA_ERR_NULL_STRING;
+    }
+
+    if (!data || !data->value || !data->size) {
+        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
+        return SCA_ERR_NULL_PARAM;
+    }
+
+    obj = OBJ_txt2obj(oid, 0);
+    if (!obj) {
+        if (OBJ_create(oid, oid, oid) == NID_undef) {
+            SCA_TRACE_ERROR("创建对象 %s 失败", oid);
+            return SCA_ERR_FAILED;
+        }
+
+        obj = OBJ_txt2obj(oid, 0);
+        if (!obj) {
+            SCA_TRACE_ERROR("获取对象 %s 失败", oid);
+            return SCA_ERR_NULL_POINTER;
+        }
+    }
+
+    loc = X509_get_ext_by_NID(cer, NID_certificate_policies, -1);
+    if (loc < 0) {
+        SCA_BYTE *der = NULL;
+        SCA_BYTE *p = NULL;
+        int len = 0;
+
+        ASN1_OBJECT *plcid = OBJ_nid2obj(NID_certificate_policies);
+        ASN1_OCTET_STRING *ext_data = NULL;
+
+        info = POLICYINFO_new();
+        info->policyid = plcid;
+        info->qualifiers = NULL;
+
+        len = i2d_POLICYINFO(info, NULL);
+        der = malloc(len);
+        memset(der, 0, len);
+        p = der;
+
+        if (i2d_POLICYINFO(info, &p) != len) {
+            ret = SCA_ERR_FAILED;
+            SCA_TRACE_CODE(ret);
+            goto end;
+        }
+
+        ext_data = ASN1_OCTET_STRING_new();
+        ASN1_OCTET_STRING_set(ext_data, der, len);
+
+        ext = X509_EXTENSION_create_by_NID(NULL, NID_certificate_policies, 1, ext_data);
+        if (!ext) {
+            ret = SCA_ERR_NULL_POINTER;
+            SCA_TRACE_CODE(ret);
+            goto end;
+        }
+
+        if (X509_add_ext(cer, ext, -1) != 1) {
+            ret = SCA_ERR_FAILED;
+            SCA_TRACE_CODE(ret);
+        }
+end:
+        if (ext) {
+            X509_EXTENSION_free(ext);
+        }
+
+        if (ext_data) {
+            ASN1_OCTET_STRING_free(ext_data);
+        }
+
+        if (der) {
+            free(der);
+        }
+
+        if (info) {
+            POLICYINFO_free(info);
+        }
+    } else {
+        ext = X509_get_ext(cer, loc);
+    }
+
+    if (obj) {
+        ASN1_OBJECT_free(obj);
+    }
+    return ret;
+}
+
+int sca_cert_ext_add_san(SCA_CERT *cert, enum SCA_SAN_TYPE type, const char *name)
 {
     return 0;
 }
