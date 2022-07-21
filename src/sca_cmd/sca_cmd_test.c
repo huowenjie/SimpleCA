@@ -12,6 +12,7 @@ static char user_c[] = "CN";
 static char user_o[] = "lzld";
 
 static char def_cps[] = "http://certificates.starfieldtech.com/repository/";
+static char def_cps1[] = "http://www.microsoft.com/pki/mscorp/cps";
 
 /*===========================================================================*/
 
@@ -137,6 +138,11 @@ int sca_cmd_test(struct sca_cmd_opt *opt)
     /* 设置证书策略 */
     cps.value = (SCA_BYTE *)def_cps;
     cps.size = sizeof(def_cps) - 1;
+    sca_cert_ext_add_cp(usercert, "2.16.840.1.114414.1.7.23.1", SCA_CP_CPS, &cps);
+    sca_cert_ext_add_cp(usercert, "2.23.140.1.2.1", SCA_CP_DEFAULT, NULL);
+
+    cps.value = (SCA_BYTE *)def_cps1;
+    cps.size = sizeof(def_cps1) - 1;
     sca_cert_ext_add_cp(usercert, "2.16.840.1.114414.1.7.23.1", SCA_CP_CPS, &cps);
 
     /* 签发证书，用 CA 的私钥签发 */

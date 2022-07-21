@@ -1233,6 +1233,21 @@ end:
     return SCA_ERR_SUCCESS;
 }
 
+/* 获取 qualifier_id 对象 */
+static ASN1_OBJECT *sca_cert_get_qualifier_id(enum SCA_CP_TYPE type)
+{
+    switch (type) {
+    case SCA_CP_DEFAULT:
+        return OBJ_nid2obj(NID_id_qt_cps);
+    case SCA_CP_CPS:
+        return OBJ_nid2obj(NID_id_qt_cps);
+    case SCA_CP_UNOTICE:
+    default:
+        SCA_TRACE_ERROR("不支持该限定符类型");
+        return NULL;
+    }
+}
+
 int sca_cert_ext_add_cp(
     SCA_CERT *cert,
     const char *oid,
@@ -1242,8 +1257,14 @@ int sca_cert_ext_add_cp(
 {
     X509 *cer = NULL;
     X509_EXTENSION *ext = NULL;
-    int loc = 0;
 
+    SCA_BYTE *der = NULL;
+    ASN1_OCTET_STRING *extdata = NULL;
+
+    int loc = 0;
+    int obj_id = 0;
+
+    CERTIFICATEPOLICIES *policies = NULL;
     POLICYINFO *info = NULL;
     ASN1_OBJECT *obj = NULL;
 
@@ -1259,53 +1280,162 @@ int sca_cert_ext_add_cp(
         return SCA_ERR_NULL_STRING;
     }
 
-    if (!data || !data->value || !data->size) {
-        SCA_TRACE_CODE(SCA_ERR_NULL_PARAM);
-        return SCA_ERR_NULL_PARAM;
-    }
-
-    obj = OBJ_txt2obj(oid, 0);
-    if (!obj) {
-        if (OBJ_create(oid, oid, oid) == NID_undef) {
+    cer = cert->cert;
+    
+    obj_id = OBJ_txt2nid(oid);
+    if (obj_id == NID_undef) {
+        if ((obj_id = OBJ_create(oid, oid, oid)) == NID_undef) {
             SCA_TRACE_ERROR("创建对象 %s 失败", oid);
             return SCA_ERR_FAILED;
         }
-
-        obj = OBJ_txt2obj(oid, 0);
-        if (!obj) {
-            SCA_TRACE_ERROR("获取对象 %s 失败", oid);
-            return SCA_ERR_NULL_POINTER;
-        }
     }
 
+    /* 获取指定策略对象 */
+    obj = OBJ_txt2obj(oid, 0);
+    if (!obj) {
+        SCA_TRACE_ERROR("创建对象 %s 失败", oid);
+        return SCA_ERR_FAILED;
+    }
+
+    /* 检查策略扩展是否存在 */
     loc = X509_get_ext_by_NID(cer, NID_certificate_policies, -1);
-    if (loc < 0) {
-        SCA_BYTE *der = NULL;
+    if (loc > 0) {
         SCA_BYTE *p = NULL;
         int len = 0;
+        SCA_BYTE *pp = NULL;
+        STACK_OF(POLICYQUALINFO) *qualis = NULL;
+        int i = 0;
 
-        ASN1_OBJECT *plcid = OBJ_nid2obj(NID_certificate_policies);
-        ASN1_OCTET_STRING *ext_data = NULL;
+        ext = X509_get_ext(cer, loc);
+        if (!ext) {
+            ASN1_OBJECT_free(obj);
+            SCA_TRACE_ERROR("第 %d 个证书扩展项为空！", loc);
+            return SCA_ERR_NULL_POINTER;
+        }
 
-        info = POLICYINFO_new();
-        info->policyid = plcid;
-        info->qualifiers = NULL;
+        extdata = X509_EXTENSION_get_data(ext);
+        if (!extdata) {
+            ASN1_OBJECT_free(obj);
+            SCA_TRACE_ERROR("第 %d 个证书扩展项为空！", loc);
+            return SCA_ERR_NULL_POINTER;
+        }
 
-        len = i2d_POLICYINFO(info, NULL);
+        if (!extdata->data || !extdata->length) {
+            ASN1_OBJECT_free(obj);
+            SCA_TRACE_ERROR("证书策略数据异常！");
+            return SCA_ERR_NULL_POINTER;
+        }
+
+        /* 解码策略列表 */
+        pp = extdata->data;
+        policies = d2i_CERTIFICATEPOLICIES(NULL, (const unsigned char **)&pp, extdata->length);
+        if (!policies) {
+            ASN1_OBJECT_free(obj);
+            SCA_TRACE_ERROR("解码证书策略失败！");
+            return SCA_ERR_NULL_POINTER;
+        }
+
+        extdata = NULL;
+
+        /* 检查当前 oid 对象是否存在 */
+        for (; i < sk_POLICYINFO_num(policies); i++) {
+            POLICYINFO *item = sk_POLICYINFO_value(policies, i);
+            if (item) {
+                int id = OBJ_obj2nid(item->policyid);
+                if (id != NID_undef && id == obj_id) {
+                    info = item;
+                    break;
+                }
+            }
+        }
+
+        if (!info) {
+            info = POLICYINFO_new();
+            info->policyid = obj;
+            sk_POLICYINFO_push(policies, info);
+        }
+
+        qualis = info->qualifiers;
+        
+        /* 添加限定符 */
+        if (data && data->value && data->size > 0) {
+            POLICYQUALINFO *quali = POLICYQUALINFO_new();
+
+            if (info->qualifiers) {
+                qualis = info->qualifiers;
+            } else {
+                qualis = sk_POLICYQUALINFO_new_null();
+                info->qualifiers = qualis;
+            }
+
+            /* 这里仅支持 CPS，暂时不支持 User Notice */
+            quali->pqualid = sca_cert_get_qualifier_id(type);
+            quali->d.cpsuri = ASN1_IA5STRING_new();
+            ASN1_OCTET_STRING_set(quali->d.cpsuri, data->value, data->size);
+            sk_POLICYQUALINFO_push(qualis, quali);
+        }
+
+        len = i2d_CERTIFICATEPOLICIES(policies, NULL);
         der = malloc(len);
         memset(der, 0, len);
         p = der;
 
-        if (i2d_POLICYINFO(info, &p) != len) {
+        if (i2d_CERTIFICATEPOLICIES(policies, &p) != len) {
             ret = SCA_ERR_FAILED;
             SCA_TRACE_CODE(ret);
             goto end;
         }
 
-        ext_data = ASN1_OCTET_STRING_new();
-        ASN1_OCTET_STRING_set(ext_data, der, len);
+        extdata = ASN1_OCTET_STRING_new();
+        ASN1_OCTET_STRING_set(extdata, der, len);
 
-        ext = X509_EXTENSION_create_by_NID(NULL, NID_certificate_policies, 1, ext_data);
+        /* 扩展不存在直接创建扩展 */
+        if (X509_EXTENSION_set_data(ext, extdata) != 1) {
+            ret = SCA_ERR_FAILED;
+            SCA_TRACE_CODE(ret);
+        }
+    } else {
+        SCA_BYTE *p = NULL;
+        int len = 0;
+        STACK_OF(POLICYQUALINFO) *qualis = NULL;
+
+        info = POLICYINFO_new();
+        info->policyid = obj;
+
+        if (data && data->value && data->size > 0) {
+            POLICYQUALINFO *quali = POLICYQUALINFO_new();
+
+            if (info->qualifiers) {
+                qualis = info->qualifiers;
+            } else {
+                qualis = sk_POLICYQUALINFO_new_null();
+                info->qualifiers = qualis;
+            }
+
+            quali->pqualid = sca_cert_get_qualifier_id(type);
+            quali->d.cpsuri = ASN1_IA5STRING_new();
+            ASN1_OCTET_STRING_set(quali->d.cpsuri, data->value, data->size);
+            sk_POLICYQUALINFO_push(qualis, quali);
+        }
+
+        policies = CERTIFICATEPOLICIES_new();
+        sk_POLICYINFO_push(policies, info);
+
+        len = i2d_CERTIFICATEPOLICIES(policies, NULL);
+        der = malloc(len);
+        memset(der, 0, len);
+        p = der;
+
+        if (i2d_CERTIFICATEPOLICIES(policies, &p) != len) {
+            ret = SCA_ERR_FAILED;
+            SCA_TRACE_CODE(ret);
+            goto end;
+        }
+
+        extdata = ASN1_OCTET_STRING_new();
+        ASN1_OCTET_STRING_set(extdata, der, len);
+
+        ext = X509_EXTENSION_create_by_NID(NULL, NID_certificate_policies, 1, extdata);
         if (!ext) {
             ret = SCA_ERR_NULL_POINTER;
             SCA_TRACE_CODE(ret);
@@ -1316,29 +1446,25 @@ int sca_cert_ext_add_cp(
             ret = SCA_ERR_FAILED;
             SCA_TRACE_CODE(ret);
         }
-end:
+
         if (ext) {
             X509_EXTENSION_free(ext);
         }
-
-        if (ext_data) {
-            ASN1_OCTET_STRING_free(ext_data);
-        }
-
-        if (der) {
-            free(der);
-        }
-
-        if (info) {
-            POLICYINFO_free(info);
-        }
-    } else {
-        ext = X509_get_ext(cer, loc);
     }
 
-    if (obj) {
-        ASN1_OBJECT_free(obj);
+end:
+    if (extdata) {
+        ASN1_OCTET_STRING_free(extdata);
     }
+
+    if (der) {
+        free(der);
+    }
+
+    if (policies) {
+        CERTIFICATEPOLICIES_free(policies);
+    }
+
     return ret;
 }
 

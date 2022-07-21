@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
 
 	/* 释放日志系统 */
 	SCA_TRACE_END;
+
 	return 0;
 }
 

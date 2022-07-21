@@ -41,7 +41,7 @@ enum SCA_SAN_TYPE {
     SCA_SAN_URI
 };
 
-/* 创建证书 约定是 v3 版本 */
+/* 创建证书 v3 版本 */
 SCA_CERT *sca_cert_create();
 
 /* 销毁证书 */
@@ -254,7 +254,7 @@ int sca_cert_ext_add_key_id(SCA_CERT *issuer, SCA_CERT *cert, int akid);
 /* 添加密钥用途, usage 见 SCA_KEY_USAGE */
 int sca_cert_ext_set_key_usage(SCA_CERT *issuer, SCA_CERT *cert, SCA_UINT32 usage);
 
-/* 添加 anyPolicy 证书策略，oid 为当前策略的标识符，type 为策略信息类型，data 为策略信息数据 */
+/* 添加 anyPolicy 证书策略，oid 为当前策略的标识符，type 为策略信息类型，data 为策略限定符信息 */
 int sca_cert_ext_add_cp(
     SCA_CERT *cert,
     const char *oid,
