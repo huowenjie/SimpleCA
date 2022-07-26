@@ -1468,11 +1468,6 @@ end:
     return ret;
 }
 
-int sca_cert_ext_add_san(SCA_CERT *cert, enum SCA_SAN_TYPE type, const char *name)
-{
-    return 0;
-}
-
 int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key)
 {
     X509 *cer = NULL;

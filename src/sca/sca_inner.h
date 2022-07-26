@@ -6,7 +6,6 @@
 
 #include <sca_csr.h>
 #include <sca_key.h>
-#include <sca_digest.h>
 #include <sca_cert.h>
 
 /*===========================================================================*/
@@ -21,11 +20,6 @@ struct sca_key {
 /* 证书请求 */
 struct sca_cert_sig_req {
     X509_REQ *req;
-};
-
-/* 摘要 */
-struct sca_digest {
-    EVP_MD_CTX *ctx;
 };
 
 /* 证书 */

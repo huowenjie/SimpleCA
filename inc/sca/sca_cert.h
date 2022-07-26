@@ -33,14 +33,6 @@ enum SCA_CP_TYPE {
     SCA_CP_UNOTICE
 };
 
-/* 证书备用名称类型 */
-enum SCA_SAN_TYPE {
-    SCA_SAN_E_MAIL = 0,
-    SCA_SAN_DNS_NAME,
-    SCA_SAN_IP_ADDRESS,
-    SCA_SAN_URI
-};
-
 /* 创建证书 v3 版本 */
 SCA_CERT *sca_cert_create();
 
@@ -261,9 +253,6 @@ int sca_cert_ext_add_cp(
     enum SCA_CP_TYPE type,
     const struct sca_data *data
 );
-
-/* 添加使用者备用名称 subject alternative name*/
-int sca_cert_ext_add_san(SCA_CERT *cert, enum SCA_SAN_TYPE type, const char *name);
 
 /* 签发证书 */
 int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key);

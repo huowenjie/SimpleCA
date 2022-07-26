@@ -2,7 +2,6 @@
 #define SCA_CSR_H
 
 #include "sca_key.h"
-#include "sca_digest.h"
 
 /*===========================================================================*/
 /* 证书签发请求（Certificate Signing Request） */
@@ -11,6 +10,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+/* 摘要算法 */
+enum SCA_MD_ALGO {
+    SCA_MD_MD5 = 0,
+    SCA_MD_SHA1,
+    SCA_MD_SHA256,
+};
 
 /*
  * 证书请求 PKCS10

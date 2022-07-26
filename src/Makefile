@@ -35,7 +35,7 @@ $(TARGET): $(OBJ_FILES)
 
 .PHONY: clean show
 clean:
-	rm -f $(DEP_FILES) $(OBJ_FILES) $(TARGET)
+	rm -f $(DEP_FILES) $(OBJ_FILES) $(TARGET) main.d main.o simpleca
 
 show:
 	@echo $(SRC_FILES)
