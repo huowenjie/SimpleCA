@@ -30,10 +30,10 @@ LOG_TRACE_DECLARE(sca_trace)
 #define SCA_TRACE_SHOW_OPT(opt) sca_trace_set_opt((opt))
 #define SCA_TRACE_SHOW_DEF \
     SCA_TRACE_SHOW_OPT( \
-        LOG_SHOW_FUNC_LINE | \
-        LOG_SHOW_FILE_PATH | \
-        LOG_FLUSH_EVERYONE | \
-        LOG_FILE_APPEND)
+        LOG_OPT_SHOW_FUNC_LINE | \
+        LOG_OPT_SHOW_FILE_PATH | \
+        LOG_OPT_FLUSH_EVERYONE | \
+        LOG_OPT_FILE_APPEND)
 
 #define SCA_TRACE(info, ...) \
     sca_log_trace(sca_trace_get_log(), info, ##__VA_ARGS__)

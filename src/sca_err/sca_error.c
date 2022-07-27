@@ -72,7 +72,7 @@ const char *sca_err_mod_desc(SCA_UINT32 code)
 	return err_list[0].desc;
 }
 
-void sca_load_all_err()
+void sca_load_all_err(void)
 {
 	/* 加载通用错误列表 */
 	sca_load_err_list(comm_err_list);

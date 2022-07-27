@@ -243,7 +243,7 @@ SCA_UINT32 sca_log_set_opt(SCA_LOG log, SCA_UINT32 opt)
         return SCA_ERR_PARAM;
     }
 
-    lgst->flag = (opt != LOG_SHOW_DEF_OPT) ? 
+    lgst->flag = (opt != LOG_OPT_SHOW_DEF_OPT) ? 
         (lgst->flag | (opt & LOG_OPT_MASK)) : (lgst->flag & (~LOG_OPT_MASK));
     return SCA_ERR_SUCCESS;
 }
@@ -557,7 +557,7 @@ SCA_UINT32 sca_log_trace_details(
         return log_output(lgst);
     }
 
-    if (lgst->flag & LOG_SHOW_FILE_PATH) {
+    if (lgst->flag & LOG_OPT_SHOW_FILE_PATH) {
         size_t len = strlen(file);
 
         num = (size_t)(lgst->log_buf.size) - tmplen;
@@ -570,7 +570,7 @@ SCA_UINT32 sca_log_trace_details(
         }
     }
 
-    if (lgst->flag & LOG_SHOW_FUNC_LINE) {
+    if (lgst->flag & LOG_OPT_SHOW_FUNC_LINE) {
         size_t len = strlen(func);
 
         num = (size_t)(lgst->log_buf.size) - tmplen;
@@ -635,7 +635,7 @@ SCA_UINT32 log_output_std(struct sca_log_info *log)
     /* 进行字符串编码转换 */
     printf("%s", (const char *)log->log_buf.value);
 
-    if (log->flag & LOG_FLUSH_EVERYONE) {
+    if (log->flag & LOG_OPT_FLUSH_EVERYONE) {
         fflush(stdout);
     }
 
@@ -669,7 +669,7 @@ SCA_UINT32 log_output_file(struct sca_log_info *log)
     str = (const char *)log->log_buf.value;
     fwrite((const char *)str, sizeof(const char), strlen(str), *fptr);
 
-    if (log->flag & LOG_FLUSH_EVERYONE)
+    if (log->flag & LOG_OPT_FLUSH_EVERYONE)
     {
         fflush(*fptr);
     }
@@ -690,7 +690,7 @@ FILE *log_open_file(struct sca_log_info *log, const char *path)
     }
 
     /* 判断是否文件是否属于追加模式 */
-    if ((log->flag & LOG_FILE_APPEND) == LOG_FILE_APPEND) {
+    if ((log->flag & LOG_OPT_FILE_APPEND) == LOG_OPT_FILE_APPEND) {
         file = fopen(path, LOG_FILE_INPSCA_APPEND);
     } else {
         file = fopen(path, LOG_FILE_INPSCA_WRITE);

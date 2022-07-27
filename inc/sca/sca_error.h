@@ -16,8 +16,7 @@ extern "C" {
 
 #define SCA_ERR_COMMON          1                       /* 通用错误模块 */
 #define SCA_ERR_LOG             (SCA_ERR_COMMON + 1)    /* 日志错误模块 */
-#define SCA_ERR_SYSCALL         (SCA_ERR_LOG + 1)       /* 系统调用错误模块 */
-#define SCA_ERR_LINK            (SCA_ERR_SYSCALL + 1)   /* 链表模块 */
+#define SCA_ERR_LINK            (SCA_ERR_LOG + 1)       /* 链表模块 */
 #define SCA_ERR_HASH            (SCA_ERR_LINK + 1)      /* 散列表模块 */
 #define SCA_ERR_CMD             (SCA_ERR_HASH + 1)      /* 命令行模块 */
 
@@ -46,25 +45,69 @@ struct sca_err_info {
     const char *desc;        /* 错误描述 */
 };
 
-/* 根据错误码获取错误描述 */
-const char *sca_err_desc(SCA_UINT32 code);
-const char *sca_err_mod_desc(SCA_UINT32 code);
-
-/* 加载内部所有模块的错误码列表 */
-void sca_load_all_err();
-
-/* 
- * 加载/卸载单独模块的错误码列表
+/**
+ * 根据错误码获取错误码描述
  * 
- * 本函数不拷贝数据，所以传入的 list；必须指向静态存储区或者堆, 
- * 内存由调用者负责维护；
- * 同时每个模块的错误码列表的第一个元素必须为 { module, desc(desc 不能为空) },
- * 最后一个元素必须为 { 0, NULL }
+ * 参数：
+ *     code[in] -- 错误码
  *
- * SCA_unload_err_list 函数仅仅会将内部缓存的地址清空，而不会释放内存
+ * 返回值：
+ *     如果成功，错误码描述；如果失败，返回 NULL。
  */
-void sca_load_err_list(const struct sca_err_info *list);
-void sca_unload_err_list(SCA_UINT32 module);
+extern const char *sca_err_desc(SCA_UINT32 code);
+
+/**
+ * 根据错误码获取错误模块描述
+ * 
+ * 参数：
+ *     code[in] -- 错误码
+ *
+ * 返回值：
+ *     如果成功，错误模块描述；如果失败，返回 NULL。
+ */
+extern const char *sca_err_mod_desc(SCA_UINT32 code);
+
+/**
+ * 加载内部所有模块的错误码列表
+ * 
+ * 参数：
+ *     void
+ *
+ * 返回值：
+ *     如果成功，错误模块描述；如果失败，返回 NULL。
+ */
+extern void sca_load_all_err(void);
+
+/**
+ * 加载单独模块的错误码列表
+ * 
+ * 参数：
+ *     list[in] -- 错误信息数组
+ *
+ * 返回值：
+ *     void
+ *
+ * 特殊说明：
+ *     本函数不拷贝数据，所以传入的 list；必须指向静态存储区或者堆, 内存由调用者负责维护；
+ * 同时每个模块的错误码列表的第一个元素必须为 { module, desc(desc 不能为空) },最后一个
+ * 元素必须为 { 0, NULL }。
+ *     
+ */
+extern void sca_load_err_list(const struct sca_err_info *list);
+
+/**
+ * 卸载单独模块的错误码列表
+ * 
+ * 参数：
+ *     module[in] -- 错误模块
+ *
+ * 返回值：
+ *     void
+ *
+ * 特殊说明：
+ *     sca_unload_err_list 函数仅仅会将内部缓存的地址清空，而不会释放内存。
+ */
+extern void sca_unload_err_list(SCA_UINT32 module);
 
 #ifdef __cplusplus
 }
