@@ -33,26 +33,66 @@ enum SCA_CP_TYPE {
     SCA_CP_UNOTICE
 };
 
-/* 创建证书 v3 版本 */
-SCA_CERT *sca_cert_create();
+/**
+ * 创建证书
+ * 
+ * 参数：
+ *     无
+ *
+ * 返回值：
+ *     成功，返回证书；失败，返回 NULL。
+ * 
+ * 特殊说明：
+ *     直接创建 v3 版本的证书；
+ *     必须使用 sca_cert_destroy 来释放。
+ */
+extern SCA_CERT *sca_cert_create();
 
-/* 销毁证书 */
-void sca_cert_destroy(SCA_CERT *cert);
+/**
+ * 销毁证书
+ * 
+ * 参数：
+ *     cert[in] -- 证书
+ *
+ * 返回值：
+ *     void
+ */
+extern void sca_cert_destroy(SCA_CERT *cert);
 
-/* 加载证书，我们默认证书文件是 PEM 格式 */
-SCA_CERT *sca_cert_load(const char *file);
+/**
+ * 从文件加载证书
+ * 
+ * 参数：
+ *     file[in] -- 证书文件
+ *
+ * 返回值：
+ *     成功，返回证书；失败，返回 NULL。
+ * 
+ * 特殊说明：
+ *     我们默认证书文件是 PEM 格式
+ */
+extern SCA_CERT *sca_cert_load(const char *file);
 
-/* 将证书请求的信息导入证书中 */
-int sca_cert_import_csr(SCA_CERT *cert, SCA_CERT_SIG_REQ *req);
+/**
+ * 将证书请求的信息导入证书中
+ * 
+ * 参数：
+ *     cert[in/out] -- 证书
+ *     req[in] -- 证书请求
+ *
+ * 返回值：
+ *     成功，返回 SCA_ERR_SUCCESS；失败，返回错误码。
+ */
+extern int sca_cert_import_csr(SCA_CERT *cert, SCA_CERT_SIG_REQ *req);
 
 /* 随机生成 20 字节的证书序列号 */
-int sca_cert_gen_serial(SCA_CERT *cert);
+extern int sca_cert_gen_serial(SCA_CERT *cert);
 
 /* 设置整数序列号，整数序列号以字符串表示，必须是正整数，最大长度 20 字节 */
-int sca_cert_set_serial(SCA_CERT *cert, const struct sca_data *serial);
+extern int sca_cert_set_serial(SCA_CERT *cert, const struct sca_data *serial);
 
 /* 获取证书序列号，format 为 0，serial 以二进制表示；format 为 1，serial 以字符串 16 进制表示 */
-int sca_cert_get_serial(SCA_CERT *cert, int format, struct sca_data *serial);
+extern int sca_cert_get_serial(SCA_CERT *cert, int format, struct sca_data *serial);
 
 /*
  * 设置证书有效期
@@ -61,37 +101,37 @@ int sca_cert_get_serial(SCA_CERT *cert, int format, struct sca_data *serial);
  * 且不允许有小数秒
  * 参照 RFC 5280
  */
-int sca_cert_set_validity(SCA_CERT *cert, const char *start, const char *end);
+extern int sca_cert_set_validity(SCA_CERT *cert, const char *start, const char *end);
 
 /* 设置颁发者信息 */
-int sca_cert_set_issuer(SCA_CERT *cert, const char *field, const struct sca_data *dn);
+extern int sca_cert_set_issuer(SCA_CERT *cert, const char *field, const struct sca_data *dn);
 
 /* 获取颁发者信息数量 */
-int sca_cert_get_issuer_count(SCA_CERT *cert);
+extern int sca_cert_get_issuer_count(SCA_CERT *cert);
 
 /* 根据索引枚举颁发者项 */
-int sca_cert_enum_issuer(SCA_CERT *cert, int index, struct sca_data *dn);
+extern int sca_cert_enum_issuer(SCA_CERT *cert, int index, struct sca_data *dn);
 
 /* 根据字段或者 oid 来获取颁发者项 */
-int sca_cert_get_issuer_name(SCA_CERT *cert, const char *field, struct sca_data *dn);
+extern int sca_cert_get_issuer_name(SCA_CERT *cert, const char *field, struct sca_data *dn);
 
 /* 设置证书主题项 */
-int sca_cert_set_subject(SCA_CERT *cert, const char *field, const struct sca_data *dn);
+extern int sca_cert_set_subject(SCA_CERT *cert, const char *field, const struct sca_data *dn);
 
 /* 获取主题项数量 */
-int sca_cert_get_subject_count(SCA_CERT *cert);
+extern int sca_cert_get_subject_count(SCA_CERT *cert);
 
 /* 根据索引枚举主题项 */
-int sca_cert_enum_subject(SCA_CERT *cert, int index, struct sca_data *dn);
+extern int sca_cert_enum_subject(SCA_CERT *cert, int index, struct sca_data *dn);
 
 /* 根据字段或者 oid 来获取主题项 */
-int sca_cert_get_subject_name(SCA_CERT *cert, const char *field, struct sca_data *dn);
+extern int sca_cert_get_subject_name(SCA_CERT *cert, const char *field, struct sca_data *dn);
 
 /* 设置 subject 公钥数据 */
-int sca_cert_set_subject_pubkey(SCA_CERT *cert, SCA_KEY *key);
+extern int sca_cert_set_subject_pubkey(SCA_CERT *cert, SCA_KEY *key);
 
 /* 获取 subject 公钥，需要调用 sca_key_destroy 来释放 */
-SCA_KEY *sca_cert_get_subject_pubkey(SCA_CERT *cert);
+extern SCA_KEY *sca_cert_get_subject_pubkey(SCA_CERT *cert);
 
 /*
  * 证书扩展项 X.509 V3 新增的功能
@@ -216,22 +256,22 @@ SCA_KEY *sca_cert_get_subject_pubkey(SCA_CERT *cert);
  */
 
 /* 添加扩展项, crit 为非零整数，则 ext 为关键项 */
-int sca_cert_add_ext(SCA_CERT *cert, const char *oid, int crit, const struct sca_data *ext);
+extern int sca_cert_add_ext(SCA_CERT *cert, const char *oid, int crit, const struct sca_data *ext);
 
 /* 获取扩展项数量 */
-int sca_cert_ext_count(SCA_CERT *cert);
+extern int sca_cert_ext_count(SCA_CERT *cert);
 
 /* 根据 oid 搜索扩展项索引 */
-int sca_cert_get_ext_loc(SCA_CERT *cert, const char *oid);
+extern int sca_cert_get_ext_loc(SCA_CERT *cert, const char *oid);
 
 /* 获取扩展项 OID */
-int sca_cert_get_ext_oid(SCA_CERT *cert, int loc, struct sca_data *oid);
+extern int sca_cert_get_ext_oid(SCA_CERT *cert, int loc, struct sca_data *oid);
 
 /* 获取扩展项数据 */
-int sca_cert_get_ext_data(SCA_CERT *cert, int loc, struct sca_data *data);
+extern int sca_cert_get_ext_data(SCA_CERT *cert, int loc, struct sca_data *data);
 
 /* 扩展项是否是关键项，critical 返回 0 是非关键项，返回 1 则是关键项 */
-int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical);
+extern int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical);
 
 /*
  * 生成密钥标识符，akid 表示是否是 Authority Key Identifier，如果为 1，则
@@ -241,27 +281,55 @@ int sca_cert_ext_is_critical(SCA_CERT *cert, int loc, int *critical);
  * Authority Key Identifier: 2.5.29.35
  * Subject Key Identifier: 2.5.29.14
  */
-int sca_cert_ext_add_key_id(SCA_CERT *issuer, SCA_CERT *cert, int akid);
+extern int sca_cert_ext_add_key_id(SCA_CERT *issuer, SCA_CERT *cert, int akid);
 
 /* 添加密钥用途, usage 见 SCA_KEY_USAGE */
-int sca_cert_ext_set_key_usage(SCA_CERT *issuer, SCA_CERT *cert, SCA_UINT32 usage);
+extern int sca_cert_ext_set_key_usage(SCA_CERT *issuer, SCA_CERT *cert, SCA_UINT32 usage);
 
 /* 添加 anyPolicy 证书策略，oid 为当前策略的标识符，type 为策略信息类型，data 为策略限定符信息 */
-int sca_cert_ext_add_cp(
+extern int sca_cert_ext_add_cp(
     SCA_CERT *cert,
     const char *oid,
     enum SCA_CP_TYPE type,
     const struct sca_data *data
 );
 
-/* 签发证书 */
-int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key);
+/**
+ * 签发证书
+ * 
+ * 参数：
+ *     cert[in] -- 证书
+ *     md[in] -- 摘要算法
+ *     key[in] -- 签发者私钥
+ *
+ * 返回值：
+ *     成功，返回 SCA_ERR_SUCCESS；失败，返回错误码。
+ */
+extern int sca_cert_sign(SCA_CERT *cert, enum SCA_MD_ALGO md, SCA_KEY *key);
 
-/* 验证证书 */
-int sca_cert_verify(SCA_CERT *cert, SCA_KEY *key);
+/**
+ * 验证证书
+ * 
+ * 参数：
+ *     cert[in] -- 证书
+ *     key[in] -- 签发者公钥
+ *
+ * 返回值：
+ *     成功，返回 SCA_ERR_SUCCESS；失败，返回错误码。
+ */
+extern int sca_cert_verify(SCA_CERT *cert, SCA_KEY *key);
 
-/* 编码证书并输出到指定文件 */
-int sca_cert_enc(SCA_CERT *cert, const char *file);
+/**
+ * 编码证书并输出到指定文件
+ * 
+ * 参数：
+ *     cert[in] -- 证书
+ *     file[in] -- 证书文件路径
+ *
+ * 返回值：
+ *     成功，返回 SCA_ERR_SUCCESS；失败，返回错误码。
+ */
+extern int sca_cert_enc(SCA_CERT *cert, const char *file);
 
 #ifdef __cplusplus
 }

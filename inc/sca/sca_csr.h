@@ -40,53 +40,169 @@ enum SCA_MD_ALGO {
 /* 证书请求 */
 typedef struct sca_cert_sig_req SCA_CERT_SIG_REQ;
 
-/* 创建证书请求结构 */
-SCA_CERT_SIG_REQ *sca_csr_create();
-
-/* 加载证书请求 */
-SCA_CERT_SIG_REQ *sca_csr_load(const char *file);
-
-/*
- * 设置主题项
- *
- * CN -- commonName (2.5.4.3)
- * C -- countryName (2.5.4.6)
- * L -- localityName (2.5.4.7)
- * ST -- stateOrProvinceName (2.5.4.8)
- * STREET -- streetAddress (2.5.4.9)
- * O -- organizationName (2.5.4.10)
- * OU -- organizationalUnitName (2.5.4.11)
+/**
+ * 创建证书请求
  * 
- * field 可以是 oid，也可以是通用字段名
+ * 参数：
+ *     无
+ *
+ * 返回值：
+ *     成功，返回证书请求；失败，返回 NULL。
+ * 
+ * 特殊说明：
+ *     必须使用 sca_csr_destroy 来释放。
  */
-int sca_csr_set_subject(SCA_CERT_SIG_REQ *csr, const char *field, const struct sca_data *dn);
+extern SCA_CERT_SIG_REQ *sca_csr_create();
 
-/* 获取主题项数量 */
-int sca_csr_get_subject_count(SCA_CERT_SIG_REQ *csr);
+/**
+ * 加载证书请求
+ * 
+ * 参数：
+ *     file[in] -- 证书请求文件
+ *
+ * 返回值：
+ *     成功，返回证书请求；失败，返回 NULL。
+ * 
+ * 特殊说明：
+ *     必须使用 sca_csr_destroy 来释放。
+ */
+extern SCA_CERT_SIG_REQ *sca_csr_load(const char *file);
 
-/* 根据索引枚举主题项 */
-int sca_csr_enum_subject(SCA_CERT_SIG_REQ *csr, int index, struct sca_data *dn);
+/**
+ * 设置证书请求主题项
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *     field[in] -- 主题项名称
+ *     dn[in] -- 主题项内容
+ *
+ * 返回值：
+ *     成功，返回证书请求；失败，返回 NULL。
+ * 
+ * 特殊说明：
+ *     常用的主题项简称/全称（oid）
+ *     CN -- commonName (2.5.4.3)
+ *     C -- countryName (2.5.4.6)
+ *     L -- localityName (2.5.4.7)
+ *     ST -- stateOrProvinceName (2.5.4.8)
+ *     STREET -- streetAddress (2.5.4.9)
+ *     O -- organizationName (2.5.4.10)
+ *     OU -- organizationalUnitName (2.5.4.11)
+ *     field 可以是 oid，也可以是通用字段名
+ */
+extern int sca_csr_set_subject(SCA_CERT_SIG_REQ *csr, const char *field, const struct sca_data *dn);
 
-/* 根据字段或者oid来获取主题项 */
-int sca_csr_get_subject_name(SCA_CERT_SIG_REQ *csr, const char *field, struct sca_data *dn);
+/**
+ * 获取主题项数量
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *
+ * 返回值：
+ *     成功，返回主题项数量；失败或主题项不存在则返回 0。
+ */
+extern int sca_csr_get_subject_count(SCA_CERT_SIG_REQ *csr);
 
-/* 设置公钥数据 */
-int sca_csr_set_pubkey(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
+/**
+ * 根据索引枚举主题项
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *     index[in] -- 主题项索引
+ *     dn[out] -- 主题项值
+ *
+ * 返回值：
+ *     成功，返回 SCA_ERR_SUCCESS；失败返回相应的错误码。
+ */
+extern int sca_csr_enum_subject(SCA_CERT_SIG_REQ *csr, int index, struct sca_data *dn);
 
-/* 获取公钥，需要调用 sca_key_destroy 来释放 */
-SCA_KEY *sca_csr_get_pubkey(SCA_CERT_SIG_REQ *csr);
+/**
+ * 根据字段或者oid来获取主题项
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *     field[in] -- 主题项名称或 OID
+ *     dn[out] -- 主题项值
+ *
+ * 返回值：
+ *     成功，返回 SCA_ERR_SUCCESS；失败返回相应的错误码。
+ */
+extern int sca_csr_get_subject_name(SCA_CERT_SIG_REQ *csr, const char *field, struct sca_data *dn);
 
-/* 生成签名数据 */
-int sca_csr_sign(SCA_CERT_SIG_REQ *csr, enum SCA_MD_ALGO md, SCA_KEY *key);
+/**
+ * 设置公钥数据
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *     key[in] -- 公钥
+ *
+ * 返回值：
+ *     成功，返回 SCA_ERR_SUCCESS；失败返回相应的错误码。
+ */
+extern int sca_csr_set_pubkey(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
 
-/* 验证证书请求 */
-int sca_csr_verify(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
+/**
+ * 获取公钥
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *
+ * 返回值：
+ *     成功，返回公钥对象；失败返回 NULL。
+ * 
+ * 特殊说明：
+ *     调用成功后，我们会在本函数内部创建一个 SCA_KEY 的对象，所以对于这个
+ * 对象，需要调用 sca_key_destroy 来释放。
+ */
+extern SCA_KEY *sca_csr_get_pubkey(SCA_CERT_SIG_REQ *csr);
 
-/* 编码证书请求并输出到指定文件 */
-int sca_csr_enc(SCA_CERT_SIG_REQ *csr, const char *file);
+/**
+ * 生成签名数据
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *     md[in] -- 摘要算法
+ *     key[in] -- 私钥
+ *
+ * 返回值：
+ *     签名成功，返回 SCA_ERR_SUCCESS；失败返回相应的错误码。
+ */
+extern int sca_csr_sign(SCA_CERT_SIG_REQ *csr, enum SCA_MD_ALGO md, SCA_KEY *key);
 
-/* 销毁证书请求 */
-void sca_csr_destroy(SCA_CERT_SIG_REQ *csr);
+/**
+ * 验证证书请求的签名数据
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *     key[in] -- 公钥
+ *
+ * 返回值：
+ *     验签成功，返回 SCA_ERR_SUCCESS；失败返回相应的错误码。
+ */
+extern int sca_csr_verify(SCA_CERT_SIG_REQ *csr, SCA_KEY *key);
+
+/**
+ * 编码证书请求并输出到指定文件
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *     file[in] -- 证书请求文件路径
+ *
+ * 返回值：
+ *     验签成功，返回 SCA_ERR_SUCCESS；失败返回相应的错误码。
+ */
+extern int sca_csr_enc(SCA_CERT_SIG_REQ *csr, const char *file);
+
+/**
+ * 销毁证书请求对象
+ * 
+ * 参数：
+ *     csr[in] -- 证书请求
+ *
+ * 返回值：
+ *     void
+ */
+extern void sca_csr_destroy(SCA_CERT_SIG_REQ *csr);
 
 #ifdef __cplusplus
 }

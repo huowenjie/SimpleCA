@@ -53,6 +53,9 @@ typedef void *SCA_LOG;
  *
  * 返回值：
  *     成功，返回 SCA_ERR_SUCCESS；失败，返回错误码。
+ *
+ * 特殊说明：
+ *     创建的 SCA_LOG 对象必须调用 sca_log_free 释放。
  */
 extern SCA_UINT32 sca_log_new(SCA_LOG *log, const char *name);
 
