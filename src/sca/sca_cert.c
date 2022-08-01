@@ -259,7 +259,7 @@ int sca_cert_set_serial(SCA_CERT *cert, const struct sca_data *serial)
 
     BN_hex2bn(&min, "1000000000");
     BN_hex2bn(&max, "FFFFFFFFFFFFFFFFFFFF");
-    BN_bin2bn(serial->value, serial->size, num);
+    BN_hex2bn(&num, (const char *)serial->value);
 
     if (BN_num_bytes(num) > 20) {
         SCA_TRACE_ERROR("序列号长度不符合规范！");
